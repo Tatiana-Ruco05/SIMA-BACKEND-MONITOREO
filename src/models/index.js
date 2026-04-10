@@ -52,10 +52,24 @@ User.hasOne(Apprentice, {
   as: 'aprendiz',
 });
 
+User.hasOne(Person, { 
+  foreignKey: 'id_usuario',
+  as: 'persona'
+});
+
+Person.belongsTo(User, {
+  foreignKey: 'id_usuario',
+  as: 'usuario'
+});
+
 module.exports = {
   sequelize,
   Role,
   User,
+  Person,
   Instructor,
   Apprentice,
+  Group,
+  ApprenticeGroup,
+  InstructorGroup,
 };

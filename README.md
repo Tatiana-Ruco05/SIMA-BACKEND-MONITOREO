@@ -53,11 +53,142 @@ npm install --save-dev nodemon
 
 endpoints
 
-GET http://localhost:3000/api/auth/me
+usuarios:
 
+GET http://localhost:3000/api/users
 Headers:
 Authorization : Bearer Token
+Respesta:
+{
+    "ok": true,
+    "message": "Usuarios obtenidos correctamente",
+    "data": [
+        {
+            "id_usuario": 1,
+            "email": "coordinador@sena.edu.co",
+            "estado": "ACTIVO",
+            "created_at": "2026-04-10T09:52:57.000Z",
+            "rol": {
+                "id_rol": 1,
+                "nombre": "coordinador"
+            },
+            "persona": {
+                "id_persona": 1,
+                "tipo_documento": "CC",
+                "numero_documento": "1234567890",
+                "nombres": "Coordinador",
+                "apellidos": "Academico",
+                "telefono": "3000000000"
+            },
+            "instructor": null,
+            "aprendiz": null
+        },
+        {
+            ...
+        },...
+    ]
+}
 
+POST http://localhost:3000/api/users
+Headers:
+Authorization : Bearer Token
+Body:
+{
+    "email": "qweasd@sena.edu.co",
+    "id_rol": "2",
+    "tipo_documento": "CC",
+    "numero_documento": "123456789",
+    "nombres": "Juan",
+    "apellidos": "Perez",
+    "telefono": "3123456789"
+}
+Respesta:
+{
+    "ok": true,
+    "message": "Usuario creado correctamente",
+    "data": {
+        "id_usuario": 2,
+        "email": "qweasd@sena.edu.co",
+        "estado": "ACTIVO",
+        "created_at": "2026-04-10T05:36:08.000Z",
+        "rol": {
+            "id_rol": 2,
+            "nombre": "instructor"
+        },
+        "persona": {
+            "id_persona": 2,
+            "tipo_documento": "CC",
+            "numero_documento": "123456789",
+            "nombres": "Juan",
+            "apellidos": "Perez",
+            "telefono": "3123456789"
+        },
+        "instructor": {
+            "id_instructor": 1,
+            "codigo_instructor": null,
+            "especialidad": null,
+            "estado": "ACTIVO"
+        },
+        "aprendiz": null
+    }
+}
+
+PUT http://localhost:3000/api/users/id
+Headers:
+Authorization : Bearer Token
+Body:
+{
+    "email": "qweasd@sena.edu.co",
+    "id_rol": "3",
+    "tipo_documento": "CC",
+    "numero_documento": "123456789",
+    "nombres": "Juan",
+    "apellidos": "Perez",
+    "telefono": "3123456789"
+}
+Respuesta:
+{
+    "ok": true,
+    "message": "Usuario actualizado correctamente",
+    "data": {
+        "id_usuario": 2,
+        "email": "qweasd@sena.edu.co",
+        "estado": "ACTIVO",
+        "created_at": "2026-04-10T05:36:08.000Z",
+        "rol": {
+            "id_rol": 3,
+            "nombre": "aprendiz"
+        },
+        "persona": {
+            "id_persona": 2,
+            "tipo_documento": "CC",
+            "numero_documento": "123456789",
+            "nombres": "Juan",
+            "apellidos": "Perez",
+            "telefono": "3123456789"
+        }
+    }
+}
+
+
+DELETE http://localhost:3000/api/users/id
+Headers:
+Authorization : Bearer Token
+Body:
+Respuesta:
+{
+    "ok": true,
+    "message": "Usuario deshabilitado correctamente",
+    "data": {
+        "id_usuario": 3,
+        "estado": "INACTIVO"
+    }
+}
+
+
+GET http://localhost:3000/api/auth/me
+Headers:
+Authorization : Bearer Token
 Respesta:
 {
     "ok": true,
