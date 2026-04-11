@@ -55,6 +55,71 @@ endpoints
 
 usuarios:
 
+POST http://localhost:3000/api/auth/login
+Body:
+{
+  "numero_documento": "1234567890",
+  "password": "Admin123"
+}
+Respesta:
+{
+    "ok": true,
+    "message": "Inicio de sesión exitoso",
+    "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZF91c3VhcmlvIjoxLCJpZF9yb2wiOjEsInJvbCI6ImNvb3JkaW5hZG9yIiwiaWF0IjoxNzc1ODgyMzEzLCJleHAiOjE3NzU5MTExMTN9.rGS2syEv9FYKOQkqbV3fYLmENhAw7xu_F-OLaFoDej0",
+        "user": {
+            "id_usuario": 1,
+            "email": "coordinador@sena.edu.co",
+            "estado": "ACTIVO",
+            "id_rol": 1,
+            "rol": "coordinador",
+            "rol_detalle": {
+                "id_rol": 1,
+                "nombre": "coordinador",
+                "descripcion": "Rol de administrador de sistema y aplicacion"
+            },
+            "persona": {
+                "id_persona": 1,
+                "tipo_documento": "CC",
+                "numero_documento": "1234567890",
+                "nombres": "Coordinador",
+                "apellidos": "Academico",
+                "telefono": "3000000000"
+            }
+        }
+    }
+}
+
+
+GET http://localhost:3000/api/auth/me
+Headers:
+Authorization : Bearer Token
+Respesta:
+{
+    "ok": true,
+    "message": "Usuario autenticado obtenido correctamente",
+    "data": {
+        "id_usuario": 1,
+        "email": "coordinador@sena.edu.co",
+        "estado": "ACTIVO",
+        "id_rol": 1,
+        "rol": "coordinador",
+        "rol_detalle": {
+            "id_rol": 1,
+            "nombre": "coordinador",
+            "descripcion": "Rol de administrador de sistema y aplicacion"
+        },
+        "persona": {
+            "id_persona": 1,
+            "tipo_documento": "CC",
+            "numero_documento": "1234567890",
+            "nombres": "Coordinador",
+            "apellidos": "Academico",
+            "telefono": "3000000000"
+        }
+    }
+}
+
 GET http://localhost:3000/api/users
 Headers:
 Authorization : Bearer Token
