@@ -7,7 +7,31 @@ const {
   createManualAlertController,
   reevaluateAttendanceAlertController,
   reevaluateObservationAlertController,
+  getAlerts,
+  getAlertById,
+  updateAlertStatus,
 } = require('../controller/alertscontroller');
+
+router.get(
+  '/',
+  authMiddleware,
+  requireRole('coordinador', 'instructor'),
+  getAlerts
+);
+
+router.get(
+  '/:id',
+  authMiddleware,
+  requireRole('coordinador', 'instructor'),
+  getAlertById
+);
+
+router.patch(
+  '/:id/status',
+  authMiddleware,
+  requireRole('coordinador', 'instructor'),
+  updateAlertStatus
+);
 
 router.post(
   '/manual',
