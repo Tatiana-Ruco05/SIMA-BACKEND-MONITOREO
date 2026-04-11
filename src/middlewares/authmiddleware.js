@@ -47,8 +47,11 @@ const authMiddleware = async (req, res, next) => {
       return errorResponse(res, 'El usuario no tiene rol asociado', 403);
     }
 
+    let instructorProfile = null;
+    let apprenticeProfile = null;
+
     if (roleName === 'instructor') {
-      const instructorProfile = await Instructor.findOne({
+      instructorProfile = await Instructor.findOne({
         where: {
           id_usuario: user.id_usuario,
           estado: 'ACTIVO',
@@ -65,7 +68,7 @@ const authMiddleware = async (req, res, next) => {
     }
 
     if (roleName === 'aprendiz') {
-      const apprenticeProfile = await Apprentice.findOne({
+      apprenticeProfile = await Apprentice.findOne({
         where: {
           id_usuario: user.id_usuario,
           estado: 'ACTIVO',
@@ -88,11 +91,14 @@ const authMiddleware = async (req, res, next) => {
       id_rol: user.id_rol,
       rol: roleName,
       rol_detalle: user.rol,
+      id_instructor: instructorProfile ? instructorProfile.id_instructor : null,
+      id_aprendiz: apprenticeProfile ? apprenticeProfile.id_aprendiz : null,
     };
 
     next();
   } catch (error) {
-    return errorResponse(res, 'No autorizado', 401, error.message);
+    console.error('Error en authMiddleware:', error.message);
+    return errorResponse(res, 'No autorizado', 401);
   }
 };
 
