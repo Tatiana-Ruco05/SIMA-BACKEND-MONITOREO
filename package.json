@@ -1,13 +1,15 @@
 {
-  "name": "observador-aprendiz-backend",
+  "name": "sigma-api",
   "version": "1.0.0",
-  "description": "Backend del sistema Observador del Aprendiz",
+  "description": "",
   "main": "src/index.js",
+
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "echo \"No tests defined\""
   },
+  
   "keywords": [],
   "author": "",
   "license": "ISC",

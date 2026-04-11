@@ -48,7 +48,7 @@ Este enfoque permite consolidar una base funcional para el seguimiento formativo
 
 script de instalacion:
 
-npm install express sequelize mysql2 dotenv jsonwebtoken bcrypt
+npm install express sequelize mysql2 dotenv jsonwebtoken bcrypt cors
 npm install --save-dev nodemon
 
 endpoints
