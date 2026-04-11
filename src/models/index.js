@@ -27,6 +27,12 @@ const Notification = require('./notifications');
 const BiometricFingerprint = require('./biometricFingerprints');
 const ValidAbsencesView = require('./validAbsencesView');
 
+// Modelos oficiales del backend de grupos
+const AreaFormacion = require('./areaformacion');
+const GrupoFormativo = require('./grupoformativo');
+const AprendizGrupo = require('./aprendizgrupo');
+const InstructorGrupo = require('./instructorgrupo');
+
 // =========================
 // Usuarios y roles
 // =========================
@@ -500,6 +506,27 @@ User.hasMany(BiometricFingerprint, {
 });
 
 // =========================
+// Asociaciones Oficiales (Grupos)
+// =========================
+GrupoFormativo.belongsTo(AreaFormacion, { foreignKey: 'id_area', as: 'area' });
+AreaFormacion.hasMany(GrupoFormativo, { foreignKey: 'id_area', as: 'grupos' });
+
+GrupoFormativo.belongsTo(Instructor, { foreignKey: 'id_instructor_lider', as: 'lider' });
+Instructor.hasMany(GrupoFormativo, { foreignKey: 'id_instructor_lider', as: 'grupos_liderados_oficial' });
+
+Apprentice.belongsToMany(GrupoFormativo, { through: AprendizGrupo, foreignKey: 'id_aprendiz', as: 'formaciones' });
+GrupoFormativo.belongsToMany(Apprentice, { through: AprendizGrupo, foreignKey: 'id_grupo', as: 'aprendices' });
+
+Apprentice.hasMany(AprendizGrupo, { foreignKey: 'id_aprendiz' });
+AprendizGrupo.belongsTo(Apprentice, { foreignKey: 'id_aprendiz' });
+
+GrupoFormativo.hasMany(AprendizGrupo, { foreignKey: 'id_grupo' });
+AprendizGrupo.belongsTo(GrupoFormativo, { foreignKey: 'id_grupo' });
+
+Instructor.belongsToMany(GrupoFormativo, { through: InstructorGrupo, foreignKey: 'id_instructor', as: 'formaciones_asignadas' });
+GrupoFormativo.belongsToMany(Instructor, { through: InstructorGrupo, foreignKey: 'id_grupo', as: 'instructores' });
+
+// =========================
 // Exportación
 // =========================
 module.exports = {
@@ -526,4 +553,9 @@ module.exports = {
   Notification,
   BiometricFingerprint,
   ValidAbsencesView,
+  // Exportaciones oficiales
+  AreaFormacion,
+  GrupoFormativo,
+  AprendizGrupo,
+  InstructorGrupo,
 };
