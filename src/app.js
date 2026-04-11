@@ -8,6 +8,13 @@ const rolesRoutes = require('./routes/rolesroutes');
 const permissionsRoutes = require('./routes/permissionsroutes');
 const apprenticesRoutes = require('./routes/apprenticesroutes');
 const gruposRoutes = require('./routes/gruposroutes');
+
+// coordinacion
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const coordinatorAreasRoutes = require('./routes/coordinatorAreasRoutes');
+
+// alertas
+const alertsRoutes = require('./routes/alertsroutes');
 const errorMiddleware = require('./middlewares/errormiddleware');
 
 app.use(express.json());
@@ -27,6 +34,16 @@ app.use('/api/roles', rolesRoutes);
 app.use('/api/permissions', permissionsRoutes);
 app.use('/api/apprentices', apprenticesRoutes);
 app.use('/api/grupos', gruposRoutes);
+
+
+// Rutas específicas para coordinadores
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/coordinator-areas', coordinatorAreasRoutes);
+
+
+
+// Rutas para alertas
+app.use('/api/alerts', alertsRoutes);
 
 app.use(errorMiddleware);
 
