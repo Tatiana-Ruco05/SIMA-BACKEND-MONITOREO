@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { GrupoFormativo, AreaFormacion, AprendizGrupo, InstructorGrupo, Instructor, Apprentice } = require('../models');
+const { Group, EducationalArea, ApprenticeGroup, InstructorGroup, Instructor, Apprentice } = require('../models');
 const { successResponse, errorResponse } = require('../helpers/response');
 const { getPagination } = require('../helpers/pagination');
 
@@ -14,8 +14,8 @@ const calcularFechaFin = (fechaInicio, trimestres) => {
 
 const includeRelations = [
   {
-    model: AreaFormacion,
-    as: 'area',
+    model: EducationalArea,
+    as: 'area', // Aseguro que la relación en auth se llame 'area', revisaré luego, si es diferente lo cambio.
     attributes: ['id_area', 'nombre_area'],
   },
 ];
@@ -29,7 +29,7 @@ const getGrupos = async (req, res) => {
     if (jornada) where.jornada = { [Op.like]: `%${jornada}%` };
     if (estado) where.estado = estado;
 
-    const { count, rows } = await GrupoFormativo.findAndCountAll({
+    const { count, rows } = await Group.findAndCountAll({
       where,
       include: includeRelations,
       order: [['id_grupo', 'DESC']],
@@ -51,12 +51,12 @@ const verificarNumeroFicha = async (req, res) => {
   try {
     const { numero_ficha } = req.params;
 
-    const fichaExistente = await GrupoFormativo.findOne({
+    const fichaExistente = await Group.findOne({
       where: { numero_ficha },
       attributes: ['id_grupo'],
     });
 
-    return res.json({ disponible: !fichaExistente });
+    return successResponse(res, 'Verificación exitosa', { disponible: !fichaExistente });
   } catch (error) {
     return errorResponse(res, 'Error al verificar el numero de ficha', 500, error.message);
   }
@@ -66,7 +66,7 @@ const getGrupoById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const grupo = await GrupoFormativo.findByPk(id, {
+    const grupo = await Group.findByPk(id, {
       include: includeRelations,
     });
 
@@ -98,12 +98,12 @@ const createGrupo = async (req, res) => {
       return errorResponse(res, 'El campo trimestres debe ser un entero mayor a 0', 400);
     }
 
-    const area = await AreaFormacion.findByPk(id_area);
+    const area = await EducationalArea.findByPk(id_area);
     if (!area) {
       return errorResponse(res, 'El area de formacion no existe', 404);
     }
 
-    const fichaExistente = await GrupoFormativo.findOne({ where: { numero_ficha } });
+    const fichaExistente = await Group.findOne({ where: { numero_ficha } });
     if (fichaExistente) {
       return errorResponse(
         res,
@@ -114,7 +114,7 @@ const createGrupo = async (req, res) => {
 
     const fechaInicioFinal = fecha_inicio || new Date().toISOString().split('T')[0];
     const fecha_fin = calcularFechaFin(fechaInicioFinal, trimestresNumero);
-    const nuevoGrupo = await GrupoFormativo.create({
+    const nuevoGrupo = await Group.create({
       numero_ficha,
       id_area,
       programa,
@@ -127,7 +127,7 @@ const createGrupo = async (req, res) => {
       trimestres: trimestresNumero,
     });
 
-    const grupoCreado = await GrupoFormativo.findByPk(nuevoGrupo.id_grupo, {
+    const grupoCreado = await Group.findByPk(nuevoGrupo.id_grupo, {
       include: includeRelations,
     });
 
@@ -146,13 +146,13 @@ const updateGrupo = async (req, res) => {
     const { id } = req.params;
     const { numero_ficha, id_area, programa, jornada, trimestres, fecha_inicio, id_ambiente, id_instructor_lider } = req.body;
 
-    const grupo = await GrupoFormativo.findByPk(id);
+    const grupo = await Group.findByPk(id);
     if (!grupo) {
       return errorResponse(res, 'Grupo formativo no encontrado', 404);
     }
 
     if (numero_ficha && numero_ficha !== grupo.numero_ficha) {
-      const fichaExistente = await GrupoFormativo.findOne({
+      const fichaExistente = await Group.findOne({
         where: { numero_ficha, id_grupo: { [Op.ne]: id } },
       });
       if (fichaExistente) {
@@ -165,7 +165,7 @@ const updateGrupo = async (req, res) => {
     }
 
     if (id_area) {
-      const area = await AreaFormacion.findByPk(id_area);
+      const area = await EducationalArea.findByPk(id_area);
       if (!area) return errorResponse(res, 'El area de formacion no existe', 404);
     }
 
@@ -189,7 +189,7 @@ const updateGrupo = async (req, res) => {
       fecha_fin: fechaFinActualizada,
     });
 
-    const grupoActualizado = await GrupoFormativo.findByPk(id, {
+    const grupoActualizado = await Group.findByPk(id, {
       include: includeRelations,
     });
 
@@ -216,7 +216,7 @@ const changeEstadoGrupo = async (req, res) => {
       );
     }
 
-    const grupo = await GrupoFormativo.findByPk(id);
+    const grupo = await Group.findByPk(id);
     if (!grupo) {
       return errorResponse(res, 'Grupo formativo no encontrado', 404);
     }
@@ -235,7 +235,7 @@ const changeEstadoGrupo = async (req, res) => {
 
 const getAreasFormacion = async (req, res) => {
   try {
-    const areas = await AreaFormacion.findAll({
+    const areas = await EducationalArea.findAll({
       order: [['nombre_area', 'ASC']],
     });
 
@@ -250,13 +250,17 @@ const asignarAprendiz = async (req, res) => {
     const { id } = req.params;
     const { id_aprendiz } = req.body;
 
-    const grupo = await GrupoFormativo.findByPk(id);
+    const grupo = await Group.findByPk(id);
     if (!grupo) return errorResponse(res, 'Grupo formativo no encontrado', 404);
+
+    if (req.user && req.user.rol === 'instructor' && grupo.id_instructor_lider !== req.user.id_instructor) {
+      return errorResponse(res, 'No tienes permisos para asignar aprendices a este grupo', 403);
+    }
 
     const aprendiz = await Apprentice.findByPk(id_aprendiz);
     if (!aprendiz) return errorResponse(res, 'Aprendiz no encontrado', 404);
 
-    const [relacion, created] = await AprendizGrupo.findOrCreate({
+    const [relacion, created] = await ApprenticeGroup.findOrCreate({
       where: { id_grupo: id, id_aprendiz: id_aprendiz },
       defaults: { estado: 'ACTIVO' }
     });
@@ -277,7 +281,14 @@ const retirarAprendiz = async (req, res) => {
   try {
     const { id, id_aprendiz } = req.params;
 
-    const relacion = await AprendizGrupo.findOne({
+    const grupo = await Group.findByPk(id);
+    if (!grupo) return errorResponse(res, 'Grupo formativo no encontrado', 404);
+
+    if (req.user && req.user.rol === 'instructor' && grupo.id_instructor_lider !== req.user.id_instructor) {
+      return errorResponse(res, 'No tienes permisos para retirar aprendices de este grupo', 403);
+    }
+
+    const relacion = await ApprenticeGroup.findOne({
       where: { id_grupo: id, id_aprendiz: id_aprendiz }
     });
 
@@ -302,19 +313,18 @@ const getGruposInstructor = async (req, res) => {
       return errorResponse(res, 'El usuario no tiene perfil de instructor activo', 403);
     }
 
-    const gruposLider = await GrupoFormativo.findAll({
+    const gruposLider = await Group.findAll({
       where: { id_instructor_lider: id_instructor },
       include: includeRelations,
     });
 
-    const asignados = await GrupoFormativo.findAll({
+    const asignados = await Group.findAll({
       include: [
         ...includeRelations,
         {
-          model: Instructor,
-          as: 'instructores',
-          where: { id_instructor },
-          through: { where: { estado: 'ACTIVO' } },
+          model: InstructorGroup,
+          as: 'instructor_grupos',
+          where: { id_instructor, estado: 'ACTIVO' },
         },
       ],
     });
@@ -339,14 +349,13 @@ const getMisGruposAprendiz = async (req, res) => {
       return errorResponse(res, 'El usuario no tiene perfil de aprendiz activo', 403);
     }
 
-    const misGrupos = await GrupoFormativo.findAll({
+    const misGrupos = await Group.findAll({
       include: [
         ...includeRelations,
         {
-          model: Apprentice,
-          as: 'aprendices',
-          where: { id_aprendiz },
-          through: { where: { estado: 'ACTIVO' }, attributes: [] },
+          model: ApprenticeGroup,
+          as: 'aprendiz_grupos',
+          where: { id_aprendiz, estado: 'ACTIVO' },
         },
       ],
     });

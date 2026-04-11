@@ -17,11 +17,11 @@ const login = async (req, res) => {
       );
     }
 
-    // Construir la condición de búsqueda
+    // Construir la condición de búsqueda básica para el usuario
     const where = email ? { email } : {};
     const personaWhere = documentValue ? { numero_documento: documentValue } : null;
 
-    // Cargar usuario con rol (sin persona, para evitar error si tabla no existe)
+    // Cargar usuario con rol (sin persona, para evitar error duro si tabla no existe)
     let user = await User.findOne({
       where,
       include: [
@@ -33,11 +33,11 @@ const login = async (req, res) => {
       ],
     });
 
-    // Intentar incluir persona si la tabla existe
-    if (user) {
+    // Intentar incluir persona si la tabla existe (lógica defensiva para entornos de BD dispares)
+    if (user || personaWhere) {
       try {
-        const userConPersona = await User.findOne({
-          where,
+        const userConPersonaQuery = {
+          where: user ? { id_usuario: user.id_usuario } : where,
           subQuery: false,
           include: [
             {
@@ -60,11 +60,17 @@ const login = async (req, res) => {
               ],
             },
           ],
-        });
+        };
+        const userConPersona = await User.findOne(userConPersonaQuery);
         if (userConPersona) user = userConPersona;
       } catch (personaError) {
-        // La tabla personas no existe en esta instancia de BD — continuar sin ella
+        // La tabla personas no existe en esta instancia de BD — ignorar el error y continuar
         if (personaError.name !== 'SequelizeDatabaseError') throw personaError;
+        
+        // Si no encontraron al usuario previamente por email, y la búsqueda requiere obligatoriamente persona (documento), entonces fallará porque no está la tabla.
+        if (!user && !!personaWhere) {
+           return errorResponse(res, 'La tabla de personas no existe en la base de datos y no se ha proporcionado un email.', 500); 
+        }
       }
     }
 
@@ -133,7 +139,6 @@ const login = async (req, res) => {
 
 const me = async (req, res) => {
   try {
-    // Cargar usuario con rol básico primero
     let user = await User.findByPk(req.user.id_usuario, {
       include: [
         {
@@ -173,7 +178,6 @@ const me = async (req, res) => {
       });
       if (userConPersona) user = userConPersona;
     } catch (personaError) {
-      // La tabla personas no existe en esta instancia — continuar sin ella
       if (personaError.name !== 'SequelizeDatabaseError') throw personaError;
     }
 
