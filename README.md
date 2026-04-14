@@ -524,3 +524,43 @@ Respesta:
     "creada_por": null
   }
 }
+
+
+GET http://localhost:3000/api/apprentices/grupos-activos
+Headers:
+Authorization : Bearer Token
+Respesta:
+{
+    "ok": true,
+    "message": "Fichas activas obtenidas correctamente",
+    "data": []
+}
+
+GET http://localhost:3000/api/apprentices/listado
+Headers:
+Authorization : Bearer Token
+Respesta:
+
+GET http://localhost:3000/api/apprentices/grupo/:idGroup
+Headers:
+Authorization : Bearer Token
+Respesta:
+
+GET http://localhost:3000/api/apprentices/grupo/:id
+Headers:
+Authorization : Bearer Token
+Respesta:
+
+POST http://localhost:3000/api/apprentices/registro
+Headers:
+Authorization : Bearer Token
+Body:
+{
+    
+}
+Respesta:
+
+POST http://localhost:3000/api/apprentices/registro-masivo
+Headers:
+Authorization : Bearer Token
+Respesta:
