@@ -10,6 +10,8 @@ const apprenticesRoutes = require('./routes/apprenticesroutes');
 // coordinacion
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const coordinatorAreasRoutes = require('./routes/coordinatorAreasRoutes');
+const groupsRoutes = require('./routes/groupsRoutes');
+const formativeProgramsRoutes = require('./routes/formativeProgramsRoutes');
 
 
 // alertas
@@ -37,8 +39,8 @@ app.use('/api/apprentices', apprenticesRoutes);
 // Rutas específicas para coordinadores
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/coordinator-areas', coordinatorAreasRoutes);
-
-
+app.use('/api/groups', groupsRoutes);
+app.use('/api/formative-programs', formativeProgramsRoutes);
 
 // Rutas para alertas
 app.use('/api/alerts', alertsRoutes);

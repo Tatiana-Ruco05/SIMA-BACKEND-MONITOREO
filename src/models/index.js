@@ -7,6 +7,7 @@ const Instructor = require('./instructors');
 const Apprentice = require('./apprentices');
 
 const EducationalArea = require('./educational_areas');
+const FormativeProgram = require('./formativePrograms');
 const CoordinatorArea = require('./coordinatorAreas');
 const Environment = require('./environments');
 const Group = require('./groups');
@@ -80,15 +81,25 @@ Apprentice.belongsTo(User, {
 });
 
 // =========================
-// Áreas y ambientes
+// Áreas, Programas de Formación y Ambientes
 // =========================
-Group.belongsTo(EducationalArea, {
+FormativeProgram.belongsTo(EducationalArea, {
   foreignKey: 'id_area',
   as: 'area',
 });
 
-EducationalArea.hasMany(Group, {
+EducationalArea.hasMany(FormativeProgram, {
   foreignKey: 'id_area',
+  as: 'programas',
+});
+
+Group.belongsTo(FormativeProgram, {
+  foreignKey: 'id_programa',
+  as: 'programa_formacion',
+});
+
+FormativeProgram.hasMany(Group, {
+  foreignKey: 'id_programa',
   as: 'grupos',
 });
 
@@ -510,6 +521,7 @@ module.exports = {
   Instructor,
   Apprentice,
   EducationalArea,
+  FormativeProgram,
   CoordinatorArea,
   Environment,
   Group,
