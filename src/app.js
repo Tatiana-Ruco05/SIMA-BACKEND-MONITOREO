@@ -1,5 +1,8 @@
 const express = require('express');
+const cors = require('cors');
 const app = express();
+
+app.use(cors());
 
 const authRoutes = require('./routes/authroutes');
 const usersRoutes = require('./routes/usersroutes');
@@ -43,7 +46,10 @@ app.use('/api/groups', groupsRoutes);
 app.use('/api/formative-programs', formativeProgramsRoutes);
 
 // Rutas para alertas
+const areasRoutes = require('./routes/areasRoutes');
+
 app.use('/api/alerts', alertsRoutes);
+app.use('/api/areas', areasRoutes);
 
 app.use(errorMiddleware);
 
