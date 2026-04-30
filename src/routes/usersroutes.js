@@ -12,9 +12,9 @@ const {
 } = require('../controller/userscontroller');
 
 router.get('/', authMiddleware, requireRole('coordinador'), getUsers);
-router.get('/:id', authMiddleware, getUserById);
+router.get('/:id', authMiddleware, requireRole('coordinador'), getUserById);
 router.post('/', authMiddleware, requireRole('coordinador'), createUser);
-router.put('/:id', authMiddleware, updateUser);
+router.put('/:id', authMiddleware, requireRole('coordinador'), updateUser);
 router.delete('/:id', authMiddleware, requireRole('coordinador'), deleteUser);
 
 module.exports = router;

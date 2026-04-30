@@ -15,9 +15,16 @@ const {
   validacionesRegistro,
 } = require('../controller/apprenticescontroller');
 
-// ── Multer: recepción de archivos Excel en memoria ──────────────────────────
+const os = require('os');
+
+// ── Multer: recepción de archivos Excel temporalmente en disco ──────────────
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: os.tmpdir(),
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}-${file.originalname}`);
+    }
+  }),
   fileFilter: (_req, file, cb) => {
     const mimePermitidos = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
