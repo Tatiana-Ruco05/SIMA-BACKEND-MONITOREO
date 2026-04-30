@@ -44,9 +44,9 @@ async function createCoordinator() {
     await sequelize.authenticate();
     console.log('Conectado a la BD');
 
-    const email = 'coordinador@sena.edu.co';
-    const numero_documento = '1234567890';
-    const passwordPlano = 'Admin123';
+    const email = 'cordinador@gmail.com';
+    const numero_documento = '1010139217';
+    const passwordPlano = '1010139217';
 
     // buscar rol coordinador
     const role = await Role.findOne({
@@ -91,9 +91,9 @@ async function createCoordinator() {
       id_usuario: user.id_usuario,
       tipo_documento: 'CC',
       numero_documento,
-      nombres: 'Coordinador',
-      apellidos: 'Academico',
-      telefono: '3000000000',
+      nombres: 'jorge',
+      apellidos: 'molina',
+      telefono: '909909090',
     });
 
     console.log('✅ Coordinador creado correctamente');

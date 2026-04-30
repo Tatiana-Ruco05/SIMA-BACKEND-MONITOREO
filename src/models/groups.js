@@ -14,12 +14,8 @@ const Group = sequelize.define(
       allowNull: false,
       unique: true,
     },
-    id_area: {
+    id_programa: {
       type: DataTypes.BIGINT.UNSIGNED,
-      allowNull: false,
-    },
-    programa: {
-      type: DataTypes.STRING(150),
       allowNull: false,
     },
     jornada: {

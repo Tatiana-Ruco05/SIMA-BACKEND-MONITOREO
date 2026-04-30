@@ -1,4 +1,5 @@
 const { Role, User } = require('../models');
+const UserService = require('../services/UserService');
 const { successResponse, errorResponse } = require('../helpers/response');
 
 const getRoles = async (req, res) => {
@@ -59,32 +60,11 @@ const assignRoleToUser = async (req, res) => {
     const { idUsuario } = req.params;
     const { id_rol } = req.body;
 
-    const user = await User.findByPk(idUsuario);
-    if (!user) {
-      return errorResponse(res, 'Usuario no encontrado', 404);
-    }
-
-    const role = await Role.findByPk(id_rol);
-    if (!role) {
-      return errorResponse(res, 'Rol no encontrado', 404);
-    }
-
-    await user.update({ id_rol });
-
-    const updatedUser = await User.findByPk(idUsuario, {
-      attributes: ['id_usuario', 'email', 'estado', 'id_rol'],
-      include: [
-        {
-          model: Role,
-          as: 'rol',
-          attributes: ['id_rol', 'nombre', 'descripcion'],
-        },
-      ],
-    });
+    const updatedUser = await UserService.changeUserRole(idUsuario, id_rol);
 
     return successResponse(res, 'Rol asignado correctamente al usuario', updatedUser);
   } catch (error) {
-    return errorResponse(res, 'Error al asignar rol al usuario', 500, error.message);
+    return errorResponse(res, error.message || 'Error al asignar rol al usuario', error.status || 500);
   }
 };
 

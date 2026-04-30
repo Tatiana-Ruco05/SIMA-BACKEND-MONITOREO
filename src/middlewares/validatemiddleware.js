@@ -1,3 +1,5 @@
+const { validationResult } = require('express-validator');
+
 const validateRequiredFields = (fields = []) => {
   return (req, res, next) => {
     const missingFields = fields.filter((field) => {
@@ -16,6 +18,19 @@ const validateRequiredFields = (fields = []) => {
   };
 };
 
+const validateRequest = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      ok: false,
+      message: 'Errores de validación en los datos enviados',
+      errors: errors.array(),
+    });
+  }
+  next();
+};
+
 module.exports = {
   validateRequiredFields,
+  validateRequest,
 };
