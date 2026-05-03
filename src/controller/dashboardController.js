@@ -1,8 +1,9 @@
-const { Op, fn, col, literal } = require('sequelize');
+const { Op, fn, col } = require('sequelize');
 const {
   sequelize,
   CoordinatorArea,
   EducationalArea,
+  FormativeProgram,
   Group,
   ApprenticeGroup,
   Apprentice,
@@ -23,6 +24,24 @@ const getAssignedAreaIds = async (id_usuario) => {
 
   return assignments.map((item) => item.id_area);
 };
+
+// Include reutilizable para filtrar grupos por áreas del coordinador
+const includeFormativeProgramByAreas = (areaIds, extraAttrs = []) => ({
+  model: FormativeProgram,
+  as: 'programa_formacion',
+  attributes: ['id_programa', 'nombre_programa', ...extraAttrs],
+  required: true,
+  include: [
+    {
+      model: EducationalArea,
+      as: 'area',
+      attributes: ['id_area', 'nombre_area'],
+    },
+  ],
+  where: {
+    id_area: { [Op.in]: areaIds },
+  },
+});
 
 const getCoordinatorSummary = async (req, res) => {
   try {
@@ -48,26 +67,52 @@ const getCoordinatorSummary = async (req, res) => {
 
     const totalAreas = areaIds.length;
 
+    // Programas únicos con grupos activos en las áreas del coordinador
     const totalProgramsResult = await Group.count({
       distinct: true,
-      col: 'programa',
-      where: {
-        id_area: { [Op.in]: areaIds },
-      },
+      col: 'id_programa',
+      where: { estado: 'ACTIVO' },
+      include: [
+        {
+          model: FormativeProgram,
+          as: 'programa_formacion',
+          attributes: [],
+          required: true,
+          where: {
+            id_area: { [Op.in]: areaIds },
+          },
+        },
+      ],
     });
 
     const totalActiveGroups = await Group.count({
-      where: {
-        id_area: { [Op.in]: areaIds },
-        estado: 'ACTIVO',
-      },
+      where: { estado: 'ACTIVO' },
+      include: [
+        {
+          model: FormativeProgram,
+          as: 'programa_formacion',
+          attributes: [],
+          required: true,
+          where: {
+            id_area: { [Op.in]: areaIds },
+          },
+        },
+      ],
     });
 
     const activeGroups = await Group.findAll({
       attributes: ['id_grupo'],
-      where: {
-        id_area: { [Op.in]: areaIds },
-      },
+      include: [
+        {
+          model: FormativeProgram,
+          as: 'programa_formacion',
+          attributes: [],
+          required: true,
+          where: {
+            id_area: { [Op.in]: areaIds },
+          },
+        },
+      ],
     });
 
     const groupIds = activeGroups.map((g) => g.id_grupo);
@@ -146,47 +191,85 @@ const getCoordinatorSummary = async (req, res) => {
       });
     }
 
+    // Resumen por área: contar grupos agrupados por área (vía programa)
     const areasSummary = await Group.findAll({
       attributes: [
-        'id_area',
-        [col('area.nombre_area'), 'nombre_area'],
         [fn('COUNT', col('Group.id_grupo')), 'total_grupos'],
       ],
       include: [
         {
-          model: EducationalArea,
-          as: 'area',
+          model: FormativeProgram,
+          as: 'programa_formacion',
           attributes: [],
+          required: true,
+          where: {
+            id_area: { [Op.in]: areaIds },
+          },
+          include: [
+            {
+              model: EducationalArea,
+              as: 'area',
+              attributes: ['id_area', 'nombre_area'],
+            },
+          ],
         },
       ],
-      where: {
-        id_area: { [Op.in]: areaIds },
-      },
-      group: ['id_area', 'area.nombre_area'],
+      group: [
+        'programa_formacion.area.id_area',
+        'programa_formacion.area.nombre_area',
+      ],
       raw: true,
+      nest: true,
     });
 
+    // Reformatear para mantener la estructura de respuesta actual
+    const areasFormatted = areasSummary.map((row) => ({
+      id_area: row.programa_formacion.area.id_area,
+      nombre_area: row.programa_formacion.area.nombre_area,
+      total_grupos: row.total_grupos,
+    }));
+
+    // Resumen por programa: contar grupos agrupados por programa
     const programsSummary = await Group.findAll({
       attributes: [
-        'id_area',
-        'programa',
-        [col('area.nombre_area'), 'nombre_area'],
         [fn('COUNT', col('Group.id_grupo')), 'total_grupos'],
       ],
       include: [
         {
-          model: EducationalArea,
-          as: 'area',
-          attributes: [],
+          model: FormativeProgram,
+          as: 'programa_formacion',
+          attributes: ['id_programa', 'nombre_programa'],
+          required: true,
+          where: {
+            id_area: { [Op.in]: areaIds },
+          },
+          include: [
+            {
+              model: EducationalArea,
+              as: 'area',
+              attributes: ['id_area', 'nombre_area'],
+            },
+          ],
         },
       ],
-      where: {
-        id_area: { [Op.in]: areaIds },
-      },
-      group: ['id_area', 'programa', 'area.nombre_area'],
-      order: [['programa', 'ASC']],
+      group: [
+        'programa_formacion.id_programa',
+        'programa_formacion.nombre_programa',
+        'programa_formacion.area.id_area',
+        'programa_formacion.area.nombre_area',
+      ],
+      order: [[{ model: FormativeProgram, as: 'programa_formacion' }, 'nombre_programa', 'ASC']],
       raw: true,
+      nest: true,
     });
+
+    const programsFormatted = programsSummary.map((row) => ({
+      id_programa: row.programa_formacion.id_programa,
+      nombre_programa: row.programa_formacion.nombre_programa,
+      id_area: row.programa_formacion.area.id_area,
+      nombre_area: row.programa_formacion.area.nombre_area,
+      total_grupos: row.total_grupos,
+    }));
 
     return successResponse(res, 'Resumen del coordinador obtenido correctamente', {
       kpis: {
@@ -198,8 +281,8 @@ const getCoordinatorSummary = async (req, res) => {
         total_observaciones_abiertas: totalOpenObservations,
         total_inasistencias_validas: totalValidAbsences,
       },
-      areas: areasSummary,
-      programas: programsSummary,
+      areas: areasFormatted,
+      programas: programsFormatted,
     });
   } catch (error) {
     return errorResponse(res, 'Error al obtener resumen del coordinador', 500, error.message);
@@ -228,19 +311,29 @@ const getAreaDetail = async (req, res) => {
     });
 
     const groups = await Group.findAll({
-      where: {
-        id_area: idArea,
-      },
+      include: [
+        {
+          model: FormativeProgram,
+          as: 'programa_formacion',
+          attributes: ['id_programa', 'nombre_programa'],
+          required: true,
+          where: {
+            id_area: idArea,
+          },
+        },
+      ],
       attributes: [
         'id_grupo',
         'numero_ficha',
-        'programa',
         'jornada',
         'fecha_inicio',
         'fecha_fin',
         'estado',
       ],
-      order: [['programa', 'ASC'], ['numero_ficha', 'ASC']],
+      order: [
+        [{ model: FormativeProgram, as: 'programa_formacion' }, 'nombre_programa', 'ASC'],
+        ['numero_ficha', 'ASC'],
+      ],
     });
 
     return successResponse(res, 'Detalle del área obtenido correctamente', {

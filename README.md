@@ -1,3 +1,5 @@
+## SIMA Backend Monitoreo
+
 Descripción del Proyecto
 
 El proyecto propone la implementación de un Sistema de Observador del Aprendiz en el Centro Tecnológico de la Producción Industrial (CTPI) del SENA, con el objetivo de fortalecer el seguimiento formativo y mejorar la comunicación entre instructores, coordinación académica y aprendices.
@@ -10,12 +12,6 @@ Arquitectura del Proyecto
 
 El proyecto adopta una arquitectura por capas orientada a API REST. Aunque la estructura de carpetas guarda similitudes con el patrón MVC, no se implementa completamente como tal, ya que no existe una capa de vistas. En su lugar, el sistema se organiza en componentes como:
 
-routes: definición de endpoints
-controller: manejo de la lógica de entrada y salida HTTP
-models: representación de entidades y acceso a datos
-middlewares: validaciones y control de acceso
-helpers: utilidades reutilizables
-config: configuración del entorno y conexión a base de datos
 
 Esta organización permite una separación clara de responsabilidades y facilita el mantenimiento del sistema.
 
@@ -44,523 +40,360 @@ Registro de asistencias
 Gestión de observaciones académicas o convivenciales
 Notificación de eventos relevantes asociados al aprendiz
 
-Este enfoque permite consolidar una base funcional para el seguimiento formativo, sobre la cual se pueden integrar futuras funcionalidades del sistema.
+## Estructura del proyecto
 
-script de instalacion:
+- `src/routes`: definicion de endpoints
+- `src/controller`: manejo de entrada y salida HTTP
+- `src/services`: reglas de negocio
+- `src/models`: modelos Sequelize
+- `src/middlewares`: autenticacion, permisos y validaciones
+- `src/helpers`: utilidades compartidas
+- `src/config`: entorno y conexion a base de datos
+- `tools`: utilidades auxiliares para datos base
 
-npm install express sequelize mysql2 dotenv jsonwebtoken bcrypt cors
-npm install --save-dev nodemon
+## Base de datos
 
-endpoints
+La estructura principal del proyecto se carga desde:
 
-usuarios:
+- `basededatos.sql`
 
-POST http://localhost:3000/api/auth/login
+Actualmente el proyecto no usa migraciones activas de Sequelize como fuente del esquema.
+
+## Instalacion
+
+```bash
+npm install
+```
+
+## Ejecucion
+
+Modo desarrollo:
+
+```bash
+npm run dev
+```
+
+Modo normal:
+
+```bash
+npm start
+```
+
+## Autenticacion
+
+Las rutas protegidas requieren:
+
+```http
+Authorization: Bearer <token>
+```
+
+### Inicio de sesion
+
+Ruta:
+
+- `POST /api/auth/login`
+
 Body:
+
+```json
 {
   "numero_documento": "1234567890",
   "password": "Admin123"
 }
-Respesta:
+```
+
+Nota:
+
+- El inicio de sesion se realiza unicamente con `numero_documento`.
+
+### Usuario autenticado
+
+Ruta:
+
+- `GET /api/auth/me`
+
+## Roles manejados
+
+- `coordinador`
+- `instructor`
+- `aprendiz`
+
+## Endpoints
+
+### Auth
+
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+
+### Usuarios
+
+Acceso:
+
+- Solo `coordinador`
+
+Rutas:
+
+- `GET /api/users`
+- `GET /api/users/:id`
+- `POST /api/users`
+- `PUT /api/users/:id`
+- `DELETE /api/users/:id`
+
+Body minimo para crear usuario:
+
+```json
 {
-    "ok": true,
-    "message": "Inicio de sesión exitoso",
-    "data": {
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZF91c3VhcmlvIjoxLCJpZF9yb2wiOjEsInJvbCI6ImNvb3JkaW5hZG9yIiwiaWF0IjoxNzc1ODgyMzEzLCJleHAiOjE3NzU5MTExMTN9.rGS2syEv9FYKOQkqbV3fYLmENhAw7xu_F-OLaFoDej0",
-        "user": {
-            "id_usuario": 1,
-            "email": "coordinador@sena.edu.co",
-            "estado": "ACTIVO",
-            "id_rol": 1,
-            "rol": "coordinador",
-            "rol_detalle": {
-                "id_rol": 1,
-                "nombre": "coordinador",
-                "descripcion": "Rol de administrador de sistema y aplicacion"
-            },
-            "persona": {
-                "id_persona": 1,
-                "tipo_documento": "CC",
-                "numero_documento": "1234567890",
-                "nombres": "Coordinador",
-                "apellidos": "Academico",
-                "telefono": "3000000000"
-            }
-        }
-    }
+  "email": "usuario@sena.edu.co",
+  "id_rol": 2,
+  "tipo_documento": "CC",
+  "numero_documento": "123456789",
+  "nombres": "Juan",
+  "apellidos": "Perez",
+  "telefono": "3123456789"
 }
+```
 
+### Roles
 
-GET http://localhost:3000/api/auth/me
-Headers:
-Authorization : Bearer Token
-Respesta:
-{
-    "ok": true,
-    "message": "Usuario autenticado obtenido correctamente",
-    "data": {
-        "id_usuario": 1,
-        "email": "coordinador@sena.edu.co",
-        "estado": "ACTIVO",
-        "id_rol": 1,
-        "rol": "coordinador",
-        "rol_detalle": {
-            "id_rol": 1,
-            "nombre": "coordinador",
-            "descripcion": "Rol de administrador de sistema y aplicacion"
-        },
-        "persona": {
-            "id_persona": 1,
-            "tipo_documento": "CC",
-            "numero_documento": "1234567890",
-            "nombres": "Coordinador",
-            "apellidos": "Academico",
-            "telefono": "3000000000"
-        }
-    }
-}
+Rutas:
 
-GET http://localhost:3000/api/users
-Headers:
-Authorization : Bearer Token
-Respesta:
-{
-    "ok": true,
-    "message": "Usuarios obtenidos correctamente",
-    "data": [
-        {
-            "id_usuario": 1,
-            "email": "coordinador@sena.edu.co",
-            "estado": "ACTIVO",
-            "created_at": "2026-04-10T09:52:57.000Z",
-            "rol": {
-                "id_rol": 1,
-                "nombre": "coordinador"
-            },
-            "persona": {
-                "id_persona": 1,
-                "tipo_documento": "CC",
-                "numero_documento": "1234567890",
-                "nombres": "Coordinador",
-                "apellidos": "Academico",
-                "telefono": "3000000000"
-            },
-            "instructor": null,
-            "aprendiz": null
-        },
-        {
-            ...
-        },...
-    ]
-}
+- `GET /api/roles`
+- `GET /api/roles/:id`
+- `GET /api/roles/:id/usuarios`
+- `PUT /api/roles/usuarios/:idUsuario`
 
-POST http://localhost:3000/api/users
-Headers:
-Authorization : Bearer Token
-Body:
-{
-    "email": "qweasd@sena.edu.co",
-    "id_rol": "2",
-    "tipo_documento": "CC",
-    "numero_documento": "123456789",
-    "nombres": "Juan",
-    "apellidos": "Perez",
-    "telefono": "3123456789"
-}
-Respesta:
-{
-    "ok": true,
-    "message": "Usuario creado correctamente",
-    "data": {
-        "id_usuario": 2,
-        "email": "qweasd@sena.edu.co",
-        "estado": "ACTIVO",
-        "created_at": "2026-04-10T05:36:08.000Z",
-        "rol": {
-            "id_rol": 2,
-            "nombre": "instructor"
-        },
-        "persona": {
-            "id_persona": 2,
-            "tipo_documento": "CC",
-            "numero_documento": "123456789",
-            "nombres": "Juan",
-            "apellidos": "Perez",
-            "telefono": "3123456789"
-        },
-        "instructor": {
-            "id_instructor": 1,
-            "codigo_instructor": null,
-            "especialidad": null,
-            "estado": "ACTIVO"
-        },
-        "aprendiz": null
-    }
-}
+Body para asignar rol:
 
-PUT http://localhost:3000/api/users/id
-Headers:
-Authorization : Bearer Token
-Body:
-{
-    "email": "qweasd@sena.edu.co",
-    "id_rol": "3",
-    "tipo_documento": "CC",
-    "numero_documento": "123456789",
-    "nombres": "Juan",
-    "apellidos": "Perez",
-    "telefono": "3123456789"
-}
-Respuesta:
-{
-    "ok": true,
-    "message": "Usuario actualizado correctamente",
-    "data": {
-        "id_usuario": 2,
-        "email": "qweasd@sena.edu.co",
-        "estado": "ACTIVO",
-        "created_at": "2026-04-10T05:36:08.000Z",
-        "rol": {
-            "id_rol": 3,
-            "nombre": "aprendiz"
-        },
-        "persona": {
-            "id_persona": 2,
-            "tipo_documento": "CC",
-            "numero_documento": "123456789",
-            "nombres": "Juan",
-            "apellidos": "Perez",
-            "telefono": "3123456789"
-        }
-    }
-}
-
-
-DELETE http://localhost:3000/api/users/id
-Headers:
-Authorization : Bearer Token
-Body:
-Respuesta:
-{
-    "ok": true,
-    "message": "Usuario deshabilitado correctamente",
-    "data": {
-        "id_usuario": 3,
-        "estado": "INACTIVO"
-    }
-}
-
-
-
-GET http://localhost:3000/api/roles
-
-Headers:
-Authorization : Bearer Token
-
-Respesta:
-{
-    "ok": true,
-    "message": "Roles obtenidos correctamente",
-    "data": [
-        {
-            "id_rol": 1,
-            "nombre": "administrador",
-            "descripcion": "Acceso total a la plataforma"
-        },
-        {
-            "id_rol": 2,
-            "nombre": "profesor",
-            "descripcion": "Instructores"
-        },
-        {
-            "id_rol": 3,
-            "nombre": "estudiante",
-            "descripcion": "Aprendices"
-        }
-    ]
-}
-
-GET http://localhost:3000/api/roles/idRol/usuarios
-
-Headers:
-Authorization : Bearer Token
-Respesta:
-{
-    "ok": true,
-    "message": "Usuarios del rol obtenidos correctamente",
-    "data": {
-        "id_rol": 1,
-        "nombre": "coordinador",
-        "descripcion": "Rol de administrador de sistema y aplicacion",
-        "usuarios": [
-            {
-                "id_usuario": 1,
-                "email": "coordinador@sena.edu.co",
-                "estado": "ACTIVO",
-                "created_at": "2026-04-11T04:56:54.000Z"
-            }
-        ]
-    }
-}
-
-PUT  http://localhost:3000/api/roles/usuarios/idUsuario
-
-Headers:
-Authorization : Bearer Token
-
-Body:
+```json
 {
   "id_rol": 2
 }
+```
 
-Respuesta:
+### Perfil
+
+Rutas:
+
+- `GET /api/profile/overview`
+- `PUT /api/profile/overview`
+
+Body permitido:
+
+```json
 {
-    "ok": true,
-    "message": "Rol asignado correctamente al usuario",
-    "data": {
-        "id_usuario": 3,
-        "email": "aprendiz1@sena.edu.co",
-        "estado": "ACTIVO",
-        "id_rol": 2,
-        "rol": {
-            "id_rol": 2,
-            "nombre": "profesor",
-            "descripcion": "Instructores"
-        }
-    }
+  "email": "nuevo@sena.edu.co",
+  "telefono": "3000000000",
+  "password_actual": "claveActual",
+  "password_nuevo": "claveNueva"
 }
+```
 
-importante
-Cómo integrarlo las alertas con el resto del sistema
-Cuando se crea o actualiza una observación
+### Dashboard de coordinacion
 
-utiliza al final del controlador:
+Acceso:
 
-const { evaluateObservationAlert } = require('../helpers/alertEngine');
+- Solo `coordinador`
 
-// después de crear o actualizar observación
-await evaluateObservationAlert(id_aprendiz);
+Rutas:
 
-Cuando se aprueba una justificación o se actualiza asistencia
+- `GET /api/dashboard/coordinador/resumen`
+- `GET /api/dashboard/coordinador/area/:idArea`
 
-al final del controlador:
-const { evaluateInattendanceAlert } = require('../helpers/alertEngine');
+### Areas de coordinador
 
-// después de aprobar/rechazar o cambiar una asistencia
-await evaluateInattendanceAlert(id_aprendiz);
+Acceso:
 
+- Solo `coordinador`
 
-GET http://localhost:3000/api/dashboard/coordinador/resumen
-Headers:
-Authorization : Bearer Token
-Respesta:
-{
-    "ok": true,
-    "message": "Resumen obtenido correctamente",
-    "data": {
-        "kpis": {
-            "total_areas": 0,
-            "total_programas": 0,
-            "total_grupos_activos": 0,
-            "total_aprendices_activos": 0,
-            "total_alertas_activas": 0,
-            "total_observaciones_abiertas": 0,
-            "total_inasistencias_validas": 0
-        },
-        "areas": [],
-        "programas": []
-    }
-}
+Rutas:
 
-GET http://localhost:3000/api/dashboard/coordinador/area/idArea
-Headers:
-Authorization : Bearer Token
-Respesta:
-{
-    "ok": true,
-    "message": "Detalle del área obtenido correctamente",
-    "data": {
-        "area": {
-            "id_area": 2,
-            "nombre_area": "Industria de la construccion"
-        },
-        "grupos": []
-    }
-}
+- `POST /api/coordinator-areas`
+- `GET /api/coordinator-areas/:idUsuario`
+- `DELETE /api/coordinator-areas/:idUsuario/:idArea`
 
-POST http://localhost:3000/api/coordinator-areas/
-Headers:
-Authorization : Bearer Token
-Body:
+Body para asignar area:
+
+```json
 {
   "id_area": 1,
   "id_usuario": 1
 }
-Respesta:
+```
+
+### Programas de formacion
+
+Acceso:
+
+- Solo `coordinador`
+
+Rutas:
+
+- `GET /api/formative-programs/area/:idArea`
+
+### Grupos
+
+Acceso:
+
+- `GET /api/groups` y `GET /api/groups/:id`: `coordinador`, `instructor`
+- Operaciones de escritura: solo `coordinador`
+- Para instructores, la consulta aplica sobre grupos donde sean lideres o tengan asignacion activa
+
+Rutas:
+
+- `GET /api/groups`
+- `GET /api/groups/:id`
+- `GET /api/groups/verificar-ficha/:numero_ficha`
+- `GET /api/groups/instructores-disponibles`
+- `POST /api/groups`
+- `PUT /api/groups/:id`
+- `PATCH /api/groups/:id/estado`
+- `PATCH /api/groups/:id/instructor-lider`
+
+Body minimo para crear grupo:
+
+```json
 {
-    "ok": true,
-    "message": "Área asignada correctamente",
-    "data": {
-        "id_coordinador_area": 1,
-        "id_usuario": 1,
-        "id_area": 1,
-        "estado": "ACTIVO"
-    }
+  "numero_ficha": "3064975",
+  "id_programa": 1,
+  "jornada": "Manana",
+  "trimestres": 6,
+  "fecha_inicio": "2025-01-20",
+  "id_ambiente": 1,
+  "id_instructor_lider": 1
 }
+```
 
-GET http://localhost:3000/api/coordinator-areas/idcoordinador
-Headers:
-Authorization : Bearer Token
-Respesta:
+Nota:
+
+- `id_instructor_lider` es opcional en la creacion.
+- Si no se envia, el grupo se crea sin lider asignado y puede actualizarse despues con `PATCH /api/groups/:id/instructor-lider`.
+
+Body para cambiar estado:
+
+```json
 {
-    "ok": true,
-    "message": "Áreas del coordinador obtenidas correctamente",
-    "data": [
-        {
-            "id_coordinador_area": 1,
-            "id_usuario": 1,
-            "id_area": 1,
-            "estado": "ACTIVO",
-            "area": {
-                "id_area": 1,
-                "nombre_area": "Tecnologías de la Información"
-            }
-        }
-    ]
+  "estado": "CERRADO"
 }
+```
 
-DELETE http://localhost:3000/api/coordinator-areas/idCoordinados/idArea
-Headers:
-Authorization : Bearer Token
-Respesta:
+Body para asignar instructor lider:
+
+```json
 {
-    "ok": true,
-    "message": "Asignación desactivada correctamente",
-    "data": {
-        "id_coordinador_area": 1,
-        "id_usuario": 1,
-        "id_area": 1,
-        "estado": "INACTIVO"
-    }
+  "id_instructor": 1
 }
+```
 
-Alertas:
+### Aprendices
 
-POST http://localhost:3000/api/alerts/manual
-Headers:
-Authorization : Bearer Token
-Body:
+Acceso:
+
+- `GET /api/apprentices/grupos-activos`: `coordinador`, `instructor`
+- `GET /api/apprentices/listado`: solo `coordinador`
+- `GET /api/apprentices/grupo/:idGrupo`: `coordinador`, `instructor`
+- `GET /api/apprentices/:id`: `coordinador`, `instructor`
+- `POST /api/apprentices/registro`: `coordinador`, `instructor`
+- `POST /api/apprentices/registro-masivo`: solo `coordinador`
+- La consulta para instructores aplica sobre grupos donde sean lideres o tengan asignacion activa
+- El registro individual de aprendices por instructor se restringe a fichas donde sea instructor lider
+
+Rutas:
+
+- `GET /api/apprentices/grupos-activos`
+- `GET /api/apprentices/listado`
+- `GET /api/apprentices/grupo/:idGrupo`
+- `GET /api/apprentices/:id`
+- `POST /api/apprentices/registro`
+- `POST /api/apprentices/registro-masivo`
+
+Body para registro individual:
+
+```json
 {
-    "id_aprendiz": 1,
-    "severidad": "GRAVE",
-    "descripcion": "Se reporta situación académica crítica por bajo desempeño sostenido y ausencia de entregables."
-
+  "tipo_documento": "CC",
+  "numero_documento": "123456789",
+  "nombres": "Juan",
+  "apellidos": "Perez",
+  "email": "juan@sena.edu.co",
+  "telefono": "3000000000",
+  "numero_ficha": "3064975"
 }
-Respesta:
+```
+
+Registro masivo:
+
+- tipo: `form-data`
+- campo esperado: `archivo`
+- formatos admitidos: `.xlsx`, `.xls`
+
+### Alertas
+
+Acceso:
+
+- Todas las rutas documentadas requieren `coordinador` o `instructor`
+
+Rutas:
+
+- `GET /api/alerts`
+- `GET /api/alerts/:id`
+- `PATCH /api/alerts/:id/status`
+- `POST /api/alerts/manual`
+- `POST /api/alerts/reevaluate/attendance/:idAprendiz`
+- `POST /api/alerts/reevaluate/observations/:idAprendiz`
+
+Body para alerta manual:
+
+```json
 {
-    "ok": true,
-    "message": "Alerta manual creada/actualizada correctamente",
-    "data": {
-        "fecha_alerta": "2026-04-11T03:21:57.905Z",
-        "id_alerta": 1,
-        "id_aprendiz": 1,
-        "id_observacion": null,
-        "tipo_alerta": "MANUAL",
-        "regla_disparo": "MANUAL",
-        "origen": "MANUAL",
-        "severidad": "GRAVE",
-        "descripcion": "Se reporta situación académica crítica por bajo desempeño sostenido y ausencia de entregables.",
-        "fecha_inicio_evaluada": null,
-        "fecha_fin_evaluada": null,
-        "creada_por": 1,
-        "estado": "ACTIVA"
-    }
+  "id_aprendiz": 1,
+  "severidad": "GRAVE",
+  "descripcion": "Se reporta situacion academica critica por bajo desempeno sostenido.",
+  "id_grupo": 1
 }
+```
 
-POST http://localhost:3000/api/alerts/reevaluate/attendance/:idAprendiz
-Headers:
-Authorization : Bearer Token
-Respesta:
+Body para cambio de estado:
+
+```json
 {
-  "ok": true,
-  "message": "Evaluación de alerta por inasistencia completada",
-  "data": {
-    "id_alerta": 22,
-    "id_aprendiz": 12,
-    "id_observacion": null,
-    "tipo_alerta": "INASISTENCIA",
-    "regla_disparo": "3_CONSECUTIVAS",
-    "origen": "AUTOMATICA",
-    "severidad": "GRAVE",
-    "descripcion": "Se detectaron 3 o más inasistencias consecutivas sin justificación aprobada.",
-    "estado": "ACTIVA",
-    "fecha_alerta": "2026-04-10T22:20:10.000Z",
-    "fecha_inicio_evaluada": "2026-04-01",
-    "fecha_fin_evaluada": "2026-04-10",
-    "creada_por": null
-  }
+  "estado": "EN_SEGUIMIENTO"
 }
+```
 
-POST /api/alerts/reevaluate/observations/:idAprendiz
-Headers:
-Authorization : Bearer Token
-Respesta:
-{
-  "ok": true,
-  "message": "Evaluación de alerta por observaciones completada",
-  "data": {
-    "id_alerta": 23,
-    "id_aprendiz": 12,
-    "id_observacion": 44,
-    "tipo_alerta": "OBSERVACIONES_RECURRENTES",
-    "regla_disparo": "OBSERVACIONES_RECURRENTES",
-    "origen": "AUTOMATICA",
-    "severidad": "MODERADA",
-    "descripcion": "Se detectaron 3 o más observaciones abiertas en los últimos 30 días.",
-    "estado": "ACTIVA",
-    "fecha_alerta": "2026-04-10T22:22:18.000Z",
-    "fecha_inicio_evaluada": "2026-03-11",
-    "fecha_fin_evaluada": "2026-04-10",
-    "creada_por": null
-  }
-}
+## Tools
 
+### Crear roles base
 
-GET http://localhost:3000/api/apprentices/grupos-activos
-Headers:
-Authorization : Bearer Token
-Respesta:
-{
-    "ok": true,
-    "message": "Fichas activas obtenidas correctamente",
-    "data": []
-}
+```bash
+node tools/create-roles.js
+```
 
-GET http://localhost:3000/api/apprentices/listado
-Headers:
-Authorization : Bearer Token
-Respesta:
+### Crear coordinador base
 
-GET http://localhost:3000/api/apprentices/grupo/:idGroup
-Headers:
-Authorization : Bearer Token
-Respesta:
+```bash
+node tools/create-coordinator.js
+```
 
-GET http://localhost:3000/api/apprentices/grupo/:id
-Headers:
-Authorization : Bearer Token
-Respesta:
+### Asignar area a coordinador
 
-POST http://localhost:3000/api/apprentices/registro
-Headers:
-Authorization : Bearer Token
-Body:
-{
-    
-}
-Respesta:
+```bash
+node tools/assign-area-to-coordinator.js <numero_documento> <id_area>
+```
 
-POST http://localhost:3000/api/apprentices/registro-masivo
-Headers:
-Authorization : Bearer Token
-Respesta:
+Ejemplo:
+
+```bash
+node tools/assign-area-to-coordinator.js 1234567890 1
+```
+
+Si no envias parametros, el script usa:
+
+- documento: `1234567890`
+- area: `1`
+
+## Notas
+
+- La respuesta general del backend usa `ok`, `message`, `data` y, cuando aplica, `errors`.
+- Para validar documentacion, toma como referencia principal las rutas reales de `src/routes`.
+- Este README describe los modulos y rutas presentes actualmente en el arbol activo del backend.
+- `README.md` y `basededatos.sql` deben mantenerse alineados con la implementacion activa del backend.
