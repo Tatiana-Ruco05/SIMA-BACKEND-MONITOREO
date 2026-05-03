@@ -1,6 +1,44 @@
 ## SIMA Backend Monitoreo
 
-Backend REST del sistema SIMA para la gestion de usuarios, grupos formativos, aprendices, coordinacion academica y monitoreo.
+Descripción del Proyecto
+
+El proyecto propone la implementación de un Sistema de Observador del Aprendiz en el Centro Tecnológico de la Producción Industrial (CTPI) del SENA, con el objetivo de fortalecer el seguimiento formativo y mejorar la comunicación entre instructores, coordinación académica y aprendices.
+
+La iniciativa responde a la necesidad de centralizar la información relacionada con el proceso formativo del aprendiz y facilitar la identificación temprana de dificultades académicas o comportamentales. Mediante el uso de herramientas digitales y el registro estructurado de información, el sistema busca optimizar la gestión académica y apoyar un acompañamiento pedagógico más oportuno y efectivo.
+
+En su estado actual, el sistema ha sido ajustado para enfocarse en el monitoreo de asistencias y registro de observaciones, centrando el flujo principal en la notificación y seguimiento de inasistencias y situaciones relevantes dentro del proceso formativo.
+
+Arquitectura del Proyecto
+
+El proyecto adopta una arquitectura por capas orientada a API REST. Aunque la estructura de carpetas guarda similitudes con el patrón MVC, no se implementa completamente como tal, ya que no existe una capa de vistas. En su lugar, el sistema se organiza en componentes como:
+
+
+Esta organización permite una separación clara de responsabilidades y facilita el mantenimiento del sistema.
+
+Manejo de Base de Datos
+
+Para la interacción con la base de datos se utiliza Sequelize, un ORM (Object-Relational Mapping) que permite mapear tablas de la base de datos a modelos en JavaScript y gestionar operaciones sin necesidad de escribir SQL directamente.
+
+Entre sus ventajas:
+
+Abstracción del acceso a la base de datos
+Reducción de código repetitivo en operaciones CRUD
+Manejo simplificado de relaciones entre entidades
+Integración con migraciones para versionamiento de la estructura
+
+Sin embargo, también presenta algunas consideraciones:
+
+Puede generar consultas menos optimizadas en escenarios complejos
+Requiere comprender tanto el ORM como el modelo relacional subyacente
+En consultas avanzadas, puede ser necesario recurrir a SQL manual
+
+Alcance Actual
+
+El sistema actualmente se enfoca en:
+
+Registro de asistencias
+Gestión de observaciones académicas o convivenciales
+Notificación de eventos relevantes asociados al aprendiz
 
 ## Estructura del proyecto
 
