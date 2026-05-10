@@ -3,7 +3,7 @@ const { successResponse, errorResponse } = require('../helpers/response');
 
 const getUsers = async (req, res) => {
   try {
-    const users = await UserService.getAllUsers();
+    const users = await UserService.getAllUsers(req.query);
     return successResponse(res, 'Usuarios obtenidos correctamente', users);
   } catch (error) {
     return errorResponse(res, error.message || 'Error al obtener usuarios', error.status || 500);

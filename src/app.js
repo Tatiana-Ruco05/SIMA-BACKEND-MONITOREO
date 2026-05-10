@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const env = require('./config/env');
 
 const app = express();
 const authRoutes = require('./routes/authroutes');
@@ -16,15 +17,18 @@ const coordinatorAreasRoutes = require('./routes/coordinatorAreasRoutes');
 const groupsRoutes = require('./routes/groupsRoutes');
 const formativeProgramsRoutes = require('./routes/formativeProgramsRoutes');
 
-
 // alertas
 const alertsRoutes = require('./routes/alertsroutes');
 
 const errorMiddleware = require('./middlewares/errormiddleware');
 
 app.use(helmet());
+const corsOrigins = env.CORS_ORIGIN === '*'
+  ? '*'
+  : env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean);
+
 app.use(cors({
-  origin: '*', // En producción, cambiar por los dominios permitidos del frontend
+  origin: corsOrigins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -46,14 +50,11 @@ app.use('/api/permissions', permissionsRoutes);
 app.use('/api/apprentices', apprenticesRoutes);
 app.use('/api/profile', profileRoutes);
 
-
-// Rutas específicas para coordinadores
+// Rutas especificas para coordinadores
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/coordinator-areas', coordinatorAreasRoutes);
 app.use('/api/groups', groupsRoutes);
 app.use('/api/formative-programs', formativeProgramsRoutes);
-
-
 
 // Rutas para alertas
 app.use('/api/alerts', alertsRoutes);

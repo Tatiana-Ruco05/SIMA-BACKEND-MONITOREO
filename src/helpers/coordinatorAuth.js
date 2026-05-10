@@ -13,7 +13,7 @@ const getCoordinatorAreaIds = async (id_usuario) => {
     attributes: ['id_area'],
   });
 
-  return areasAsignadas.map((item) => item.id_area);
+  return areasAsignadas.map((item) => Number(item.id_area));
 };
 
 const checkCoordinatorProgramAccess = async (id_usuario, id_programa) => {

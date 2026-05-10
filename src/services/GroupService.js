@@ -62,10 +62,14 @@ class GroupService {
     );
   }
 
-  static async _assertCoordinatorCanManageProgram(requester, id_programa) {
+  static async _assertCoordinatorCanManageProgram(
+    requester,
+    id_programa,
+    message = 'No tienes permisos para crear grupos en el area asociada a este programa de formacion'
+  ) {
     const tieneAcceso = await checkCoordinatorProgramAccess(requester.id_usuario, id_programa);
     if (!tieneAcceso) {
-      throw { status: 403, message: 'No tienes permisos para crear grupos en el area asociada a este programa de formacion' };
+      throw { status: 403, message };
     }
   }
 
@@ -95,8 +99,8 @@ class GroupService {
   }
 
   static async _findActiveInstructorOrFail(id_instructor) {
-    const instructor = await Instructor.findByPk(id_instructor, {
-      where: { estado: 'ACTIVO' },
+    const instructor = await Instructor.findOne({
+      where: { id_instructor, estado: 'ACTIVO' },
       include: [
         {
           model: User,
@@ -259,6 +263,11 @@ class GroupService {
     await this._assertCoordinatorCanManageGroup(requester, id, 'No tienes permisos para actualizar este grupo');
 
     if (id_programa !== undefined) {
+      await this._assertCoordinatorCanManageProgram(
+        requester,
+        id_programa,
+        'No tienes permisos para actualizar este grupo con el programa seleccionado'
+      );
       await this._findProgramOrFail(id_programa);
     }
 
