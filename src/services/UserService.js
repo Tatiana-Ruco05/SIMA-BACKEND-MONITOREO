@@ -11,22 +11,81 @@ const {
   sequelize,
 } = require('../models');
 const { hashPassword } = require('../helpers/bcrypt');
+const { getPagination } = require('../helpers/pagination');
 
 class UserService {
   /**
    * Obtiene todos los usuarios
    */
-  static async getAllUsers() {
-    return User.findAll({
+  static async getAllUsers(filters = {}) {
+    const {
+      page,
+      limit,
+      rol,
+      estado,
+      q,
+      search,
+      documento,
+      nombre,
+      email,
+    } = filters;
+    const { limit: take, offset } = getPagination(page, limit);
+
+    const whereUser = {};
+    if (estado) whereUser.estado = estado;
+    if (email) whereUser.email = { [Op.like]: `%${email}%` };
+
+    const whereRole = {};
+    if (rol) whereRole.nombre = rol;
+
+    const wherePerson = {};
+    if (documento) wherePerson.numero_documento = { [Op.like]: `%${documento}%` };
+    if (nombre) {
+      wherePerson[Op.or] = [
+        { nombres: { [Op.like]: `%${nombre}%` } },
+        { apellidos: { [Op.like]: `%${nombre}%` } },
+      ];
+    }
+
+    const searchTerm = q || search;
+    if (searchTerm) {
+      const likeSearch = { [Op.like]: `%${searchTerm}%` };
+      whereUser[Op.or] = [
+        ...(whereUser[Op.or] || []),
+        { email: likeSearch },
+        { '$persona.numero_documento$': likeSearch },
+        { '$persona.nombres$': likeSearch },
+        { '$persona.apellidos$': likeSearch },
+      ];
+    }
+
+    const { count, rows } = await User.findAndCountAll({
+      where: whereUser,
       attributes: ['id_usuario', 'email', 'estado', 'created_at'],
       include: [
-        { model: Role, as: 'rol', attributes: ['id_rol', 'nombre'] },
-        { model: Person, as: 'persona', attributes: ['id_persona', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'telefono'] },
+        {
+          model: Role,
+          as: 'rol',
+          attributes: ['id_rol', 'nombre'],
+          ...(Object.keys(whereRole).length ? { where: whereRole, required: true } : {}),
+        },
+        {
+          model: Person,
+          as: 'persona',
+          attributes: ['id_persona', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'telefono'],
+          ...(Object.keys(wherePerson).length ? { where: wherePerson, required: true } : {}),
+        },
         { model: Instructor, as: 'instructor', required: false, attributes: ['id_instructor', 'estado'] },
         { model: Apprentice, as: 'aprendiz', required: false, attributes: ['id_aprendiz', 'estado', 'estado_formativo'] },
       ],
       order: [['id_usuario', 'ASC']],
+      limit: take,
+      offset,
+      distinct: true,
+      subQuery: false,
     });
+
+    return { total: count, pagina: Number(page) || 1, usuarios: rows };
   }
 
   /**

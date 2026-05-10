@@ -10,8 +10,8 @@ const {
   Instructor,
   CoordinatorArea,
   Apprentice,
-  InstructorGroup,
 } = require('../models');
+const { getAccessibleGroupIdsForRequester } = require('../helpers/coordinatorAuth');
 
 const ALERT_STATES_OPEN = ['ACTIVA', 'EN_SEGUIMIENTO'];
 
@@ -225,31 +225,7 @@ class AlertService {
   // ═══════════════════════════════════════════════════════════════════════════════
 
   static async getAccessibleGroupIdsForUser(requester) {
-    if (requester.rol === 'coordinador') {
-      const assignments = await CoordinatorArea.findAll({
-        where: { id_usuario: requester.id_usuario, estado: 'ACTIVO' }, attributes: ['id_area'],
-      });
-      const areaIds = assignments.map((a) => a.id_area);
-      if (!areaIds.length) return [];
-
-      const groups = await Group.findAll({
-        include: [{ model: FormativeProgram, as: 'programa_formacion', attributes: [], required: true, where: { id_area: { [Op.in]: areaIds } } }],
-        attributes: ['id_grupo'],
-      });
-      return groups.map((g) => g.id_grupo);
-    }
-
-    if (requester.rol === 'instructor') {
-      const instructor = await Instructor.findOne({ where: { id_usuario: requester.id_usuario, estado: 'ACTIVO' }, attributes: ['id_instructor'] });
-      if (!instructor) return [];
-
-      const liderGroups = await Group.findAll({ where: { id_instructor_lider: instructor.id_instructor }, attributes: ['id_grupo'] });
-      const assignedGroups = await InstructorGroup.findAll({ where: { id_instructor: instructor.id_instructor, estado: 'ACTIVO' }, attributes: ['id_grupo'] });
-
-      const ids = [...liderGroups.map((g) => g.id_grupo), ...assignedGroups.map((g) => g.id_grupo)];
-      return [...new Set(ids)];
-    }
-    return [];
+    return getAccessibleGroupIdsForRequester(requester);
   }
 
   static async createManualAlert(data, requester) {
