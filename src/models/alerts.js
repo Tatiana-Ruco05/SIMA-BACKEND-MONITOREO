@@ -22,7 +22,7 @@ const Alert = sequelize.define(
       allowNull: true,
     },
     tipo_alerta: {
-      type: DataTypes.ENUM('INASISTENCIA', 'OBSERVACIONES_RECURRENTES', 'MANUAL'),
+      type: DataTypes.ENUM('ASISTENCIAL', 'OBSERVACIONES_RECURRENTES', 'CONVIVENCIAL'),
       allowNull: false,
     },
     regla_disparo: {

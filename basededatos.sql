@@ -303,7 +303,7 @@ CREATE TABLE `alertas` (
   `id_aprendiz` BIGINT UNSIGNED NOT NULL,
   `id_grupo` BIGINT UNSIGNED NOT NULL,
   `id_observacion` BIGINT UNSIGNED DEFAULT NULL,
-  `tipo_alerta` ENUM('INASISTENCIA', 'OBSERVACIONES_RECURRENTES', 'MANUAL') NOT NULL,
+  `tipo_alerta` ENUM('ASISTENCIAL', 'OBSERVACIONES_RECURRENTES', 'CONVIVENCIAL') NOT NULL,
   `regla_disparo` ENUM('3_CONSECUTIVAS', '5_DISTINTOS_DIAS', 'OBSERVACIONES_RECURRENTES', 'MANUAL') DEFAULT NULL,
   `origen` ENUM('AUTOMATICA', 'MANUAL') NOT NULL,
   `severidad` ENUM('LEVE', 'MODERADA', 'GRAVE', 'CRITICA') NOT NULL DEFAULT 'MODERADA',
@@ -864,7 +864,7 @@ INSERT INTO `observaciones` (`id_aprendiz`, `id_grupo`, `id_instructor`, `tipo_o
 
 -- 17. ALERTAS
 INSERT INTO `alertas` (`id_aprendiz`, `id_grupo`, `id_observacion`, `tipo_alerta`, `origen`, `severidad`, `descripcion`) VALUES 
-(1, 1, 1, 'MANUAL', 'MANUAL', 'LEVE', 'Seguimiento por desempeño académico sobresaliente.');
+(1, 1, 1, 'CONVIVENCIAL', 'MANUAL', 'LEVE', 'se porto mal en clase y molesto a temu');
 
 -- 18. ALERTA_OBSERVACIONES
 INSERT INTO `alerta_observaciones` (`id_alerta`, `id_observacion`, `asociada_por`) VALUES

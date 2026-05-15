@@ -452,6 +452,16 @@ User.hasMany(Alert, {
   as: 'alertas_cerradas',
 });
 
+Alert.belongsTo(User, {
+  foreignKey: 'creada_por',
+  as: 'usuario_creador',
+});
+
+User.hasMany(Alert, {
+  foreignKey: 'creada_por',
+  as: 'alertas_creadas',
+});
+
 AlertObservation.belongsTo(Alert, {
   foreignKey: 'id_alerta',
   as: 'alerta',
