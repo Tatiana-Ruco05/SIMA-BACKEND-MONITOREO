@@ -9,6 +9,7 @@ const usersRoutes = require('./routes/usersroutes');
 const rolesRoutes = require('./routes/rolesroutes');
 const permissionsRoutes = require('./routes/permissionsroutes');
 const apprenticesRoutes = require('./routes/apprenticesroutes');
+const observationsRoutes = require('./routes/observationsroutes');
 const profileRoutes = require('./routes/profileRoutes');
 
 // coordinacion
@@ -48,6 +49,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/roles', rolesRoutes);
 app.use('/api/permissions', permissionsRoutes);
 app.use('/api/apprentices', apprenticesRoutes);
+app.use('/api/observations', observationsRoutes);
 app.use('/api/profile', profileRoutes);
 
 // Rutas especificas para coordinadores

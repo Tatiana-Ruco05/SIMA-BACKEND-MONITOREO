@@ -13,6 +13,10 @@ const Alert = sequelize.define(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
+    id_grupo: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
     id_observacion: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: true,
@@ -57,6 +61,18 @@ const Alert = sequelize.define(
       allowNull: true,
     },
     creada_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    justificacion_cierre: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    fecha_cierre: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    cerrada_por: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: true,
     },

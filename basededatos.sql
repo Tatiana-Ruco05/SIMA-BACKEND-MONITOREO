@@ -269,18 +269,25 @@ CREATE TABLE `aprendices` (
 CREATE TABLE `observaciones` (
   `id_observacion` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `id_aprendiz` BIGINT UNSIGNED NOT NULL,
+  `id_grupo` BIGINT UNSIGNED NOT NULL,
   `id_instructor` BIGINT UNSIGNED NOT NULL,
   `tipo_observacion` ENUM('ACADEMICA', 'CONVIVENCIAL') NOT NULL,
   `severidad` ENUM('LEVE', 'MODERADA', 'GRAVE') NOT NULL DEFAULT 'MODERADA',
   `descripcion` TEXT NOT NULL,
   `fecha_observacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `fecha_cierre` DATETIME DEFAULT NULL,
   `estado` ENUM('ABIERTA', 'CERRADA') NOT NULL DEFAULT 'ABIERTA',
   PRIMARY KEY (`id_observacion`),
   KEY `fk_obs_aprendiz` (`id_aprendiz`),
+  KEY `fk_obs_grupo` (`id_grupo`),
   KEY `fk_obs_instructor` (`id_instructor`),
   CONSTRAINT `fk_obs_aprendiz`
     FOREIGN KEY (`id_aprendiz`)
     REFERENCES `aprendices` (`id_aprendiz`)
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_obs_grupo`
+    FOREIGN KEY (`id_grupo`)
+    REFERENCES `grupos_formativos` (`id_grupo`)
     ON UPDATE CASCADE,
   CONSTRAINT `fk_obs_instructor`
     FOREIGN KEY (`id_instructor`)
@@ -294,6 +301,7 @@ CREATE TABLE `observaciones` (
 CREATE TABLE `alertas` (
   `id_alerta` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `id_aprendiz` BIGINT UNSIGNED NOT NULL,
+  `id_grupo` BIGINT UNSIGNED NOT NULL,
   `id_observacion` BIGINT UNSIGNED DEFAULT NULL,
   `tipo_alerta` ENUM('INASISTENCIA', 'OBSERVACIONES_RECURRENTES', 'MANUAL') NOT NULL,
   `regla_disparo` ENUM('3_CONSECUTIVAS', '5_DISTINTOS_DIAS', 'OBSERVACIONES_RECURRENTES', 'MANUAL') DEFAULT NULL,
@@ -305,17 +313,64 @@ CREATE TABLE `alertas` (
   `fecha_inicio_evaluada` DATE DEFAULT NULL,
   `fecha_fin_evaluada` DATE DEFAULT NULL,
   `creada_por` BIGINT UNSIGNED DEFAULT NULL,
+  `justificacion_cierre` TEXT DEFAULT NULL,
+  `fecha_cierre` DATETIME DEFAULT NULL,
+  `cerrada_por` BIGINT UNSIGNED DEFAULT NULL,
   PRIMARY KEY (`id_alerta`),
   KEY `fk_alertas_aprendiz` (`id_aprendiz`),
+  KEY `idx_alertas_grupo` (`id_grupo`),
+  KEY `idx_alertas_aprendiz_grupo_estado_tipo` (`id_aprendiz`, `id_grupo`, `estado`, `tipo_alerta`),
   KEY `fk_alertas_obs` (`id_observacion`),
+  KEY `fk_alertas_cerrada_por` (`cerrada_por`),
   CONSTRAINT `fk_alertas_aprendiz`
     FOREIGN KEY (`id_aprendiz`)
     REFERENCES `aprendices` (`id_aprendiz`)
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_alertas_grupo`
+    FOREIGN KEY (`id_grupo`)
+    REFERENCES `grupos_formativos` (`id_grupo`)
+    ON DELETE RESTRICT
     ON UPDATE CASCADE,
   CONSTRAINT `fk_alertas_obs`
     FOREIGN KEY (`id_observacion`)
     REFERENCES `observaciones` (`id_observacion`)
     ON DELETE SET NULL
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_alertas_cerrada_por`
+    FOREIGN KEY (`cerrada_por`)
+    REFERENCES `usuarios` (`id_usuario`)
+    ON DELETE SET NULL
+    ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- alerta_observaciones
+-- -----------------------------------------------------
+CREATE TABLE `alerta_observaciones` (
+  `id_alerta_observacion` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id_alerta` BIGINT UNSIGNED NOT NULL,
+  `id_observacion` BIGINT UNSIGNED NOT NULL,
+  `asociada_por` BIGINT UNSIGNED NOT NULL,
+  `fecha_asociacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_alerta_observacion`),
+  UNIQUE KEY `uk_alerta_observacion_obs` (`id_observacion`),
+  KEY `fk_alerta_obs_alerta` (`id_alerta`),
+  KEY `fk_alerta_obs_observacion` (`id_observacion`),
+  KEY `fk_alerta_obs_usuario` (`asociada_por`),
+  CONSTRAINT `fk_alerta_obs_alerta`
+    FOREIGN KEY (`id_alerta`)
+    REFERENCES `alertas` (`id_alerta`)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_alerta_obs_observacion`
+    FOREIGN KEY (`id_observacion`)
+    REFERENCES `observaciones` (`id_observacion`)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_alerta_obs_usuario`
+    FOREIGN KEY (`asociada_por`)
+    REFERENCES `usuarios` (`id_usuario`)
+    ON DELETE RESTRICT
     ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -751,8 +806,7 @@ INSERT INTO `coordinador_area` (`id_usuario`, `id_area`, `estado`) VALUES
 
 -- 4.5. PROGRAMAS DE FORMACION
 INSERT INTO `programas_formacion` (`id_area`, `nombre_programa`) VALUES 
-(1, 'ADSO'),
-(2, 'IoT Aplicado');
+(1, 'ADSO');
 
 -- 5. AMBIENTES
 INSERT INTO `ambientes` (`nombre_ambiente`, `ubicacion`, `capacidad`, `estado`) VALUES 
@@ -766,8 +820,7 @@ INSERT INTO `instructores` (`id_usuario`, `codigo_instructor`, `especialidad`, `
 
 -- 7. GRUPOS FORMATIVOS (INYECCIÓN ACTUALIZADA)
 INSERT INTO `grupos_formativos` (`numero_ficha`, `id_programa`, `jornada`, `fecha_inicio`, `fecha_fin`, `id_ambiente`, `id_instructor_lider`, `trimestres`) VALUES 
-('3064975', 1, 'Mañana', '2025-01-20', '2026-06-20', 1, 1, 6),
-('2850312', 2, 'Tarde', '2024-05-15', '2025-11-15', 2, 1, 4);
+('3064975', 1, 'Mañana', '2025-01-20', '2026-06-20', 1, 1, 6);
 
 -- 8. APRENDICES
 INSERT INTO `aprendices` (`id_usuario`, `estado_formativo`, `estado`) VALUES 
@@ -806,13 +859,33 @@ INSERT INTO `asistencias` (`id_aprendiz`, `id_acceso`, `estado_asistencia`, `hor
 (1, 1, 'PRESENTE', '07:05:00', 'BIOMETRICO', 1, 1, '2026-04-10');
 
 -- 16. OBSERVACIONES
-INSERT INTO `observaciones` (`id_aprendiz`, `id_instructor`, `tipo_observacion`, `severidad`, `descripcion`) VALUES 
-(1, 1, 'ACADEMICA', 'LEVE', 'Excelente desempeño en el desarrollo de la lógica de base de datos.');
+INSERT INTO `observaciones` (`id_aprendiz`, `id_grupo`, `id_instructor`, `tipo_observacion`, `severidad`, `descripcion`, `fecha_cierre`, `estado`) VALUES 
+(1, 1, 1, 'ACADEMICA', 'LEVE', 'Excelente desempeño en el desarrollo de la lógica de base de datos.', CURRENT_TIMESTAMP, 'CERRADA');
 
 -- 17. ALERTAS
-INSERT INTO `alertas` (`id_aprendiz`, `id_observacion`, `tipo_alerta`, `origen`, `severidad`, `descripcion`) VALUES 
-(1, 1, 'MANUAL', 'MANUAL', 'LEVE', 'Seguimiento por desempeño académico sobresaliente.');
+INSERT INTO `alertas` (`id_aprendiz`, `id_grupo`, `id_observacion`, `tipo_alerta`, `origen`, `severidad`, `descripcion`) VALUES 
+(1, 1, 1, 'MANUAL', 'MANUAL', 'LEVE', 'Seguimiento por desempeño académico sobresaliente.');
 
--- 18. NOTIFICACIONES
+-- 18. ALERTA_OBSERVACIONES
+INSERT INTO `alerta_observaciones` (`id_alerta`, `id_observacion`, `asociada_por`) VALUES
+(1, 1, 2);
+
+-- 19. NOTIFICACIONES
 INSERT INTO `notificaciones` (`id_usuario`, `titulo`, `mensaje`, `tipo`) VALUES 
 (3, 'Nueva Observación', 'Se ha registrado una observación académica en tu perfil.', 'OBSERVACION');
+
+
+-- sprint#2
+-- Ajuste manual para bases existentes: trazabilidad de cierre de alertas.
+-- Ejecutar una sola vez despues de validar que las columnas no existan.
+
+ALTER TABLE `alertas`
+  ADD COLUMN `justificacion_cierre` TEXT DEFAULT NULL AFTER `creada_por`,
+  ADD COLUMN `fecha_cierre` DATETIME DEFAULT NULL AFTER `justificacion_cierre`,
+  ADD COLUMN `cerrada_por` BIGINT UNSIGNED DEFAULT NULL AFTER `fecha_cierre`,
+  ADD KEY `fk_alertas_cerrada_por` (`cerrada_por`),
+  ADD CONSTRAINT `fk_alertas_cerrada_por`
+    FOREIGN KEY (`cerrada_por`)
+    REFERENCES `usuarios` (`id_usuario`)
+    ON DELETE SET NULL
+    ON UPDATE CASCADE;
