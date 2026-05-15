@@ -23,6 +23,7 @@ const InstructorGroup = require('./instructorGroups');
 const Attendance = require('./attendances');
 const Observation = require('./observations');
 const Alert = require('./alerts');
+const AlertObservation = require('./alertObservation');
 const AttendanceJustification = require('./attendanceJustifications');
 const Notification = require('./notifications');
 const BiometricFingerprint = require('./biometricFingerprints');
@@ -388,6 +389,16 @@ Apprentice.hasMany(Observation, {
   as: 'observaciones',
 });
 
+Observation.belongsTo(Group, {
+  foreignKey: 'id_grupo',
+  as: 'grupo',
+});
+
+Group.hasMany(Observation, {
+  foreignKey: 'id_grupo',
+  as: 'observaciones',
+});
+
 Observation.belongsTo(Instructor, {
   foreignKey: 'id_instructor',
   as: 'instructor',
@@ -411,6 +422,16 @@ Apprentice.hasMany(Alert, {
   as: 'alertas',
 });
 
+Alert.belongsTo(Group, {
+  foreignKey: 'id_grupo',
+  as: 'grupo',
+});
+
+Group.hasMany(Alert, {
+  foreignKey: 'id_grupo',
+  as: 'alertas',
+});
+
 Alert.belongsTo(Observation, {
   foreignKey: 'id_observacion',
   as: 'observacion',
@@ -419,6 +440,46 @@ Alert.belongsTo(Observation, {
 Observation.hasMany(Alert, {
   foreignKey: 'id_observacion',
   as: 'alertas',
+});
+
+Alert.belongsTo(User, {
+  foreignKey: 'cerrada_por',
+  as: 'usuario_cierre',
+});
+
+User.hasMany(Alert, {
+  foreignKey: 'cerrada_por',
+  as: 'alertas_cerradas',
+});
+
+AlertObservation.belongsTo(Alert, {
+  foreignKey: 'id_alerta',
+  as: 'alerta',
+});
+
+Alert.hasMany(AlertObservation, {
+  foreignKey: 'id_alerta',
+  as: 'alerta_observaciones',
+});
+
+AlertObservation.belongsTo(Observation, {
+  foreignKey: 'id_observacion',
+  as: 'observacion',
+});
+
+Observation.hasOne(AlertObservation, {
+  foreignKey: 'id_observacion',
+  as: 'alerta_observacion',
+});
+
+AlertObservation.belongsTo(User, {
+  foreignKey: 'asociada_por',
+  as: 'usuario_asociador',
+});
+
+User.hasMany(AlertObservation, {
+  foreignKey: 'asociada_por',
+  as: 'alertas_observaciones_asociadas',
 });
 
 // =========================
@@ -534,6 +595,7 @@ module.exports = {
   Attendance,
   Observation,
   Alert,
+  AlertObservation,
   AttendanceJustification,
   Notification,
   BiometricFingerprint,

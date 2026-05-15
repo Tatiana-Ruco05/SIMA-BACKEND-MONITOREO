@@ -1,12 +1,17 @@
 const AlertService = require('../services/AlertService');
 const { successResponse, errorResponse } = require('../helpers/response');
 
+const createAlertFromObservationsController = async (req, res) => {
+  try {
+    const alert = await AlertService.createFromObservations(req.body, req.user);
+    return successResponse(res, 'Alerta creada desde observaciones correctamente', alert, 201);
+  } catch (error) {
+    return errorResponse(res, error.message || 'Error al crear alerta desde observaciones', error.status || 500);
+  }
+};
+
 const createManualAlertController = async (req, res) => {
   try {
-    const { id_aprendiz, severidad, descripcion, id_grupo } = req.body;
-    if (!id_aprendiz || !severidad || !descripcion) {
-      return errorResponse(res, 'id_aprendiz, severidad y descripcion son obligatorios', 400);
-    }
     const alert = await AlertService.createManualAlert(req.body, req.user);
     return successResponse(res, 'Alerta manual creada/actualizada correctamente', alert, 201);
   } catch (error) {
@@ -53,11 +58,21 @@ const getAlertById = async (req, res) => {
   }
 };
 
+const getAlertObservationsController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const observations = await AlertService.getAlertObservations(id, req.user);
+    return successResponse(res, 'Observaciones asociadas a la alerta obtenidas correctamente', observations);
+  } catch (error) {
+    return errorResponse(res, error.message || 'Error al obtener observaciones de la alerta', error.status || 500);
+  }
+};
+
 const updateAlertStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { estado } = req.body;
-    const alert = await AlertService.updateAlertStatus(id, estado, req.user);
+    const { estado, justificacion_cierre } = req.body;
+    const alert = await AlertService.updateAlertStatus(id, estado, req.user, justificacion_cierre);
     return successResponse(res, 'Estado de alerta actualizado correctamente', alert);
   } catch (error) {
     return errorResponse(res, error.message || 'Error al actualizar el estado de la alerta', error.status || 500);
@@ -65,10 +80,12 @@ const updateAlertStatus = async (req, res) => {
 };
 
 module.exports = {
+  createAlertFromObservationsController,
   createManualAlertController,
   reevaluateAttendanceAlertController,
   reevaluateObservationAlertController,
   getAlerts,
   getAlertById,
+  getAlertObservationsController,
   updateAlertStatus,
 };

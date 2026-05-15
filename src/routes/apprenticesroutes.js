@@ -75,11 +75,11 @@ router.post(
   registrarIndividual
 );
 
-// Registro masivo solo para coordinador
+// Registro masivo para coordinador o instructor lider de ficha
 router.post(
   '/registro-masivo',
   authMiddleware,
-  requireRole('coordinador'),
+  requireRole('coordinador', 'instructor'),
   upload.single('archivo'),
   registrarMasivo
 );

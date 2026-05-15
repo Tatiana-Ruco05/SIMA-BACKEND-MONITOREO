@@ -13,6 +13,10 @@ const Observation = sequelize.define(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
+    id_grupo: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
     id_instructor: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
@@ -34,6 +38,10 @@ const Observation = sequelize.define(
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+    },
+    fecha_cierre: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
     estado: {
       type: DataTypes.ENUM('ABIERTA', 'CERRADA'),
