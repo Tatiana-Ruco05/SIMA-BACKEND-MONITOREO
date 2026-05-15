@@ -12,6 +12,7 @@ const {
 } = require('../models');
 const { hashPassword } = require('../helpers/bcrypt');
 const { getPagination } = require('../helpers/pagination');
+const { assertRequesterCanAccessGroup } = require('../helpers/coordinatorAuth');
 
 class UserService {
   /**
@@ -192,8 +193,8 @@ class UserService {
   /**
    * Crea un usuario y sus perfiles asociados usando transacción
    */
-  static async createUser(data) {
-    const { email, password, id_rol, tipo_documento, numero_documento, nombres, apellidos, telefono } = data;
+  static async createUser(data, requester) {
+    const { email, password, id_rol, tipo_documento, numero_documento, nombres, apellidos, telefono, id_grupo } = data;
     const transaction = await sequelize.transaction();
 
     try {
@@ -205,6 +206,27 @@ class UserService {
 
       const role = await Role.findByPk(id_rol, { transaction });
       if (!role) throw { status: 404, message: 'Rol no encontrado' };
+
+      let selectedGroup = null;
+      if (role.nombre === 'aprendiz') {
+        if (!id_grupo) {
+          throw { status: 400, message: 'La ficha activa es obligatoria para registrar un aprendiz' };
+        }
+
+        selectedGroup = await Group.findByPk(id_grupo, { transaction });
+        if (!selectedGroup) throw { status: 404, message: 'Ficha formativa no encontrada' };
+        if (selectedGroup.estado !== 'ACTIVO') {
+          throw { status: 400, message: 'El aprendiz solo puede vincularse a una ficha activa' };
+        }
+
+        if (requester) {
+          await assertRequesterCanAccessGroup(
+            requester,
+            id_grupo,
+            'No tienes permisos para registrar aprendices en esta ficha'
+          );
+        }
+      }
 
       const plainPassword = password && String(password).trim() !== '' ? String(password) : String(numero_documento);
       const hashedPassword = await hashPassword(plainPassword);
@@ -221,6 +243,23 @@ class UserService {
       }, { transaction });
 
       await this._syncUserProfile(user.id_usuario, role.nombre, transaction);
+
+      if (selectedGroup) {
+        const apprentice = await Apprentice.findOne({
+          where: { id_usuario: user.id_usuario },
+          transaction,
+        });
+
+        if (!apprentice) {
+          throw { status: 500, message: 'No se pudo crear el perfil de aprendiz' };
+        }
+
+        await ApprenticeGroup.create({
+          id_aprendiz: apprentice.id_aprendiz,
+          id_grupo: selectedGroup.id_grupo,
+          estado: 'ACTIVO',
+        }, { transaction });
+      }
 
       await transaction.commit();
 
@@ -242,17 +281,64 @@ class UserService {
   /**
    * Actualiza un usuario
    */
+  static async _instructorCanAccessApprentice(requester, idAprendiz, transaction) {
+    if (requester.rol !== 'instructor' || !requester.id_instructor || !idAprendiz) {
+      return false;
+    }
+
+    const apprenticeGroupLinks = await ApprenticeGroup.findAll({
+      where: { id_aprendiz: idAprendiz, estado: 'ACTIVO' },
+      attributes: ['id_grupo'],
+      transaction,
+    });
+
+    if (!apprenticeGroupLinks.length) return false;
+
+    const groupIds = apprenticeGroupLinks.map((item) => item.id_grupo);
+
+    const leaderGroup = await Group.findOne({
+      where: {
+        id_grupo: { [Op.in]: groupIds },
+        id_instructor_lider: requester.id_instructor,
+      },
+      attributes: ['id_grupo'],
+      transaction,
+    });
+
+    if (leaderGroup) return true;
+
+    const assignedGroup = await InstructorGroup.findOne({
+      where: {
+        id_instructor: requester.id_instructor,
+        id_grupo: { [Op.in]: groupIds },
+        estado: 'ACTIVO',
+      },
+      attributes: ['id_grupo'],
+      transaction,
+    });
+
+    return Boolean(assignedGroup);
+  }
+
   static async updateUser(id, data, requester) {
     const transaction = await sequelize.transaction();
 
     try {
-      const user = await User.findByPk(id, { include: [{ model: Person, as: 'persona' }], transaction });
+      const user = await User.findByPk(id, {
+        include: [
+          { model: Person, as: 'persona' },
+          { model: Apprentice, as: 'aprendiz', required: false },
+        ],
+        transaction,
+      });
       if (!user) throw { status: 404, message: 'Usuario no encontrado' };
 
       const isCoordinator = requester.rol === 'coordinador';
       const isSelfUpdate = Number(requester.id_usuario) === Number(id);
+      const isInstructorUpdatingAccessibleApprentice = !isCoordinator && !isSelfUpdate
+        && await this._instructorCanAccessApprentice(requester, user.aprendiz?.id_aprendiz, transaction);
 
-      if (!isCoordinator && !isSelfUpdate) {
+      if (!isCoordinator && !isSelfUpdate && !isInstructorUpdatingAccessibleApprentice) {
         throw { status: 403, message: 'No tienes permisos para modificar los datos de otro usuario' };
       }
 
@@ -264,12 +350,16 @@ class UserService {
       const userUpdateData = {};
       const personUpdateData = {};
 
-      if (isCoordinator) {
-        if (data.email !== undefined) userUpdateData.email = data.email;
-        if (data.id_rol !== undefined) userUpdateData.id_rol = data.id_rol;
-        if (data.estado !== undefined) userUpdateData.estado = data.estado;
+      if (isCoordinator || isInstructorUpdatingAccessibleApprentice) {
+        if (isInstructorUpdatingAccessibleApprentice && (data.id_rol !== undefined || data.estado !== undefined || data.password !== undefined)) {
+          throw { status: 403, message: 'No tienes permisos para modificar rol, estado o contrasena del aprendiz' };
+        }
 
-        if (data.password && String(data.password).trim() !== '') {
+        if (data.email !== undefined) userUpdateData.email = data.email;
+        if (isCoordinator && data.id_rol !== undefined) userUpdateData.id_rol = data.id_rol;
+        if (isCoordinator && data.estado !== undefined) userUpdateData.estado = data.estado;
+
+        if (isCoordinator && data.password && String(data.password).trim() !== '') {
           userUpdateData.password = await hashPassword(String(data.password));
         }
 

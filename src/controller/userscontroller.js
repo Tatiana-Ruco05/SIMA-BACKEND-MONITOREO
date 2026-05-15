@@ -27,7 +27,7 @@ const createUser = async (req, res) => {
     if (!email || !id_rol || !tipo_documento || !numero_documento || !nombres || !apellidos) {
       return errorResponse(res, 'Faltan campos obligatorios', 400);
     }
-    const createdUser = await UserService.createUser(req.body);
+    const createdUser = await UserService.createUser(req.body, req.user);
     return successResponse(res, 'Usuario creado correctamente', createdUser, 201);
   } catch (error) {
     return errorResponse(res, error.message || 'Error al crear usuario', error.status || 500);
