@@ -17,9 +17,8 @@ const {
   updateAlertStatus,
 } = require('../controller/alertscontroller');
 
-const alertTypes = ['INASISTENCIA', 'OBSERVACIONES_RECURRENTES', 'MANUAL'];
+const alertTypes = ['ASISTENCIAL', 'OBSERVACIONES_RECURRENTES', 'CONVIVENCIAL'];
 const alertSeverities = ['LEVE', 'MODERADA', 'GRAVE', 'CRITICA'];
-const manualAlertSeverities = ['LEVE', 'MODERADA', 'GRAVE'];
 const alertStates = ['ACTIVA', 'EN_SEGUIMIENTO', 'CERRADA'];
 
 const idParamValidation = (name) => param(name).isInt({ min: 1 }).withMessage(`${name} debe ser un entero positivo`);
@@ -41,7 +40,8 @@ const queryFilterValidations = [
 const createAlertFromObservationsValidations = [
   body('id_aprendiz').isInt({ min: 1 }).withMessage('id_aprendiz es obligatorio y debe ser entero positivo'),
   body('id_grupo').isInt({ min: 1 }).withMessage('id_grupo es obligatorio y debe ser entero positivo'),
-  body('severidad').isIn(manualAlertSeverities).withMessage('severidad debe ser LEVE, MODERADA o GRAVE'),
+  body('severidad').isIn(alertSeverities).withMessage('severidad debe ser LEVE, MODERADA, GRAVE o CRITICA'),
+  body('tipo_alerta').optional().isIn(alertTypes).withMessage('tipo_alerta invalido'),
   body('descripcion').trim().isLength({ min: 10 }).withMessage('descripcion es obligatoria'),
   body('observationIds').isArray({ min: 1 }).withMessage('Debe asociar al menos una observacion'),
   body('observationIds.*').isInt({ min: 1 }).withMessage('Cada observacion debe ser un entero positivo'),
@@ -51,7 +51,8 @@ const createAlertFromObservationsValidations = [
 const createManualAlertValidations = [
   body('id_aprendiz').isInt({ min: 1 }).withMessage('id_aprendiz es obligatorio y debe ser entero positivo'),
   body('id_grupo').isInt({ min: 1 }).withMessage('id_grupo es obligatorio y debe ser entero positivo'),
-  body('severidad').isIn(manualAlertSeverities).withMessage('severidad debe ser LEVE, MODERADA o GRAVE'),
+  body('tipo_alerta').optional().isIn(alertTypes).withMessage('tipo_alerta invalido'),
+  body('severidad').isIn(alertSeverities).withMessage('severidad debe ser LEVE, MODERADA, GRAVE o CRITICA'),
   body('descripcion').trim().isLength({ min: 10 }).withMessage('descripcion es obligatoria'),
 ];
 

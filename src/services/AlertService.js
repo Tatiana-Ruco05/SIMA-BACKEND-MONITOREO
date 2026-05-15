@@ -33,6 +33,17 @@ class AlertService {
     return Math.round(ms / (1000 * 60 * 60 * 24));
   }
 
+  static _dateBoundary(dateValue, endOfDay = false) {
+    if (!dateValue) return null;
+
+    const value = String(dateValue);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return `${value} ${endOfDay ? '23:59:59' : '00:00:00'}`;
+    }
+
+    return value;
+  }
+
   static _alertIncludes({ includeObservationLinks = true, search = null } = {}) {
     const apprenticeInclude = {
       model: Apprentice,
@@ -69,6 +80,32 @@ class AlertService {
     const includes = [
       apprenticeInclude,
       { model: Group, as: 'grupo', attributes: ['id_grupo', 'numero_ficha', 'estado', 'id_instructor_lider'] },
+      {
+        model: User,
+        as: 'usuario_creador',
+        required: false,
+        attributes: ['id_usuario', 'email'],
+        include: [
+          {
+            model: Person,
+            as: 'persona',
+            attributes: ['nombres', 'apellidos', 'numero_documento'],
+          },
+        ],
+      },
+      {
+        model: User,
+        as: 'usuario_cierre',
+        required: false,
+        attributes: ['id_usuario', 'email'],
+        include: [
+          {
+            model: Person,
+            as: 'persona',
+            attributes: ['nombres', 'apellidos', 'numero_documento'],
+          },
+        ],
+      },
       {
         model: Observation,
         as: 'observacion',
@@ -338,7 +375,7 @@ class AlertService {
       const alert = await this.createOrUpdateAlert({
         id_aprendiz,
         id_grupo,
-        tipo_alerta: 'MANUAL',
+        tipo_alerta: data.tipo_alerta || 'CONVIVENCIAL',
         regla_disparo: 'MANUAL',
         origen: 'MANUAL',
         severidad,
@@ -370,7 +407,7 @@ class AlertService {
   }
 
   static async createManualAlert(data, requester) {
-    const { id_aprendiz, id_grupo, severidad, descripcion } = data;
+    const { id_aprendiz, id_grupo, severidad, descripcion, tipo_alerta = 'CONVIVENCIAL' } = data;
     if (!id_grupo) throw { status: 400, message: 'id_grupo es obligatorio para crear alertas' };
 
     if (!['coordinador', 'instructor'].includes(requester.rol)) {
@@ -387,7 +424,7 @@ class AlertService {
     const alert = await this.createOrUpdateAlert({
       id_aprendiz,
       id_grupo,
-      tipo_alerta: 'MANUAL',
+      tipo_alerta,
       regla_disparo: 'MANUAL',
       origen: 'MANUAL',
       severidad,
@@ -402,7 +439,7 @@ class AlertService {
   static async evaluateInattendanceAlert(id_aprendiz) {
     const rows = await ValidAbsencesView.findAll({ where: { id_aprendiz }, order: [['fecha_clase', 'ASC']] });
     if (!rows.length) {
-      await this.closeOpenAlertByType(id_aprendiz, 'INASISTENCIA');
+      await this.closeOpenAlertByType(id_aprendiz, 'ASISTENCIAL');
       return null;
     }
 
@@ -435,7 +472,7 @@ class AlertService {
         results.push(await this.createOrUpdateAlert({
           id_aprendiz,
           id_grupo: latest.id_grupo,
-          tipo_alerta: 'INASISTENCIA',
+          tipo_alerta: 'ASISTENCIAL',
           regla_disparo: '3_CONSECUTIVAS',
           origen: 'AUTOMATICA',
           severidad: 'GRAVE',
@@ -450,7 +487,7 @@ class AlertService {
         results.push(await this.createOrUpdateAlert({
           id_aprendiz,
           id_grupo: latest.id_grupo,
-          tipo_alerta: 'INASISTENCIA',
+          tipo_alerta: 'ASISTENCIAL',
           regla_disparo: '5_DISTINTOS_DIAS',
           origen: 'AUTOMATICA',
           severidad: 'MODERADA',
@@ -461,7 +498,7 @@ class AlertService {
         continue;
       }
 
-      await this.closeOpenAlertByType(id_aprendiz, 'INASISTENCIA', latest.id_grupo);
+      await this.closeOpenAlertByType(id_aprendiz, 'ASISTENCIAL', latest.id_grupo);
     }
 
     return results.length === 1 ? results[0] : results;
@@ -555,8 +592,8 @@ class AlertService {
 
     if (fecha_desde || fecha_hasta) {
       where.fecha_alerta = {};
-      if (fecha_desde) where.fecha_alerta[Op.gte] = fecha_desde;
-      if (fecha_hasta) where.fecha_alerta[Op.lte] = fecha_hasta;
+      if (fecha_desde) where.fecha_alerta[Op.gte] = this._dateBoundary(fecha_desde);
+      if (fecha_hasta) where.fecha_alerta[Op.lte] = this._dateBoundary(fecha_hasta, true);
     }
 
     return where;
