@@ -21,6 +21,7 @@ const createUserValidations = [
   body('nombres').trim().notEmpty().withMessage('Los nombres son obligatorios').isLength({ max: 100 }),
   body('apellidos').trim().notEmpty().withMessage('Los apellidos son obligatorios').isLength({ max: 100 }),
   body('telefono').optional({ checkFalsy: true }).trim().isLength({ max: 20 }),
+  body('id_grupo').optional({ checkFalsy: true }).isInt({ min: 1 }).withMessage('La ficha del aprendiz debe ser un entero valido'),
   body('password').optional({ checkFalsy: true }).isLength({ min: 6 }).withMessage('La contrasena debe tener al menos 6 caracteres'),
 ];
 
@@ -37,9 +38,9 @@ const updateUserValidations = [
 ];
 
 router.get('/', authMiddleware, requireRole('coordinador'), getUsers);
-router.get('/:id', authMiddleware, requireRole('coordinador'), getUserById);
+router.get('/:id', authMiddleware, requireRole('coordinador', 'instructor', 'aprendiz'), getUserById);
 router.post('/', authMiddleware, requireRole('coordinador'), createUserValidations, validateRequest, createUser);
-router.put('/:id', authMiddleware, requireRole('coordinador'), updateUserValidations, validateRequest, updateUser);
+router.put('/:id', authMiddleware, requireRole('coordinador', 'instructor', 'aprendiz'), updateUserValidations, validateRequest, updateUser);
 router.delete('/:id', authMiddleware, requireRole('coordinador'), deleteUser);
 
 module.exports = router;
