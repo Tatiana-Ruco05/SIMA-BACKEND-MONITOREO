@@ -25,6 +25,12 @@ class ObservationService {
     }
   }
 
+  static _ensureApprenticeRequester(requester) {
+    if (!requester || requester.rol !== 'aprendiz' || !requester.id_aprendiz) {
+      throw { status: 403, message: 'Solo un aprendiz activo puede consultar sus observaciones' };
+    }
+  }
+
   static async _getGroupAccessForInstructor(id_grupo, id_instructor, transaction) {
     const group = await Group.findByPk(id_grupo, {
       attributes: ['id_grupo', 'numero_ficha', 'estado', 'id_instructor_lider'],
@@ -32,7 +38,7 @@ class ObservationService {
     });
 
     if (!group) throw { status: 404, message: 'Grupo formativo no encontrado' };
-    if (group.estado !== 'ACTIVO') throw { status: 409, message: 'El grupo formativo no se encuentra activo' };
+    if (group.estado === 'FINALIZADO') throw { status: 409, message: 'El grupo formativo se encuentra finalizado' };
 
     const isLeader = Number(group.id_instructor_lider) === Number(id_instructor);
     const assigned = await InstructorGroup.findOne({
@@ -258,6 +264,51 @@ class ObservationService {
     return {
       total: count,
       pagina: currentPage,
+      observaciones: rows,
+    };
+  }
+
+  static async getMyObservations(filters, requester) {
+    this._ensureApprenticeRequester(requester);
+
+    const { page, limit } = filters;
+    const { limit: take, offset, page: currentPage } = getPagination(page, limit);
+    const where = this._applyFilters({ id_aprendiz: requester.id_aprendiz }, {
+      ...filters,
+      id_aprendiz: requester.id_aprendiz,
+    });
+
+    const { count, rows } = await Observation.findAndCountAll({
+      where,
+      include: this._observationIncludes(),
+      order: [['fecha_observacion', 'DESC']],
+      limit: take,
+      offset,
+      distinct: true,
+    });
+
+    const apprentice = await Apprentice.findByPk(requester.id_aprendiz, {
+      attributes: ['id_aprendiz', 'id_usuario', 'estado', 'estado_formativo'],
+      include: [
+        {
+          model: User,
+          as: 'usuario',
+          attributes: ['id_usuario', 'email', 'estado'],
+          include: [
+            {
+              model: Person,
+              as: 'persona',
+              attributes: ['tipo_documento', 'numero_documento', 'nombres', 'apellidos'],
+            },
+          ],
+        },
+      ],
+    });
+
+    return {
+      total: count,
+      pagina: currentPage,
+      aprendiz: apprentice,
       observaciones: rows,
     };
   }

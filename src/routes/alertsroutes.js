@@ -19,14 +19,14 @@ const {
 
 const alertTypes = ['ASISTENCIAL', 'OBSERVACIONES_RECURRENTES', 'CONVIVENCIAL'];
 const alertSeverities = ['LEVE', 'MODERADA', 'GRAVE', 'CRITICA'];
-const alertStates = ['ACTIVA', 'EN_SEGUIMIENTO', 'CERRADA'];
+const alertStates = ['ABIERTA', 'CERRADA'];
 
 const idParamValidation = (name) => param(name).isInt({ min: 1 }).withMessage(`${name} debe ser un entero positivo`);
 
 const queryFilterValidations = [
   query('q').optional().trim().isLength({ min: 1 }).withMessage('q no puede estar vacio'),
   query('page').optional().isInt({ min: 1 }).withMessage('page debe ser un entero positivo'),
-  query('limit').optional().isInt({ min: 1 }).withMessage('limit debe ser un entero positivo'),
+  query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('limit debe estar entre 1 y 50'),
   query('offset').optional().isInt({ min: 0 }).withMessage('offset debe ser un entero mayor o igual a cero'),
   query('estado').optional().isIn(alertStates).withMessage('estado invalido'),
   query('severidad').optional().isIn(alertSeverities).withMessage('severidad invalida'),
@@ -42,10 +42,9 @@ const createAlertFromObservationsValidations = [
   body('id_grupo').isInt({ min: 1 }).withMessage('id_grupo es obligatorio y debe ser entero positivo'),
   body('severidad').isIn(alertSeverities).withMessage('severidad debe ser LEVE, MODERADA, GRAVE o CRITICA'),
   body('tipo_alerta').optional().isIn(alertTypes).withMessage('tipo_alerta invalido'),
-  body('descripcion').trim().isLength({ min: 10 }).withMessage('descripcion es obligatoria'),
+  body('descripcion').trim().isLength({ min: 20, max: 2000 }).withMessage('descripcion debe tener entre 20 y 2000 caracteres'),
   body('observationIds').isArray({ min: 1 }).withMessage('Debe asociar al menos una observacion'),
   body('observationIds.*').isInt({ min: 1 }).withMessage('Cada observacion debe ser un entero positivo'),
-  body('notificar_coordinador').optional().isBoolean().withMessage('notificar_coordinador debe ser booleano'),
 ];
 
 const createManualAlertValidations = [
@@ -53,11 +52,11 @@ const createManualAlertValidations = [
   body('id_grupo').isInt({ min: 1 }).withMessage('id_grupo es obligatorio y debe ser entero positivo'),
   body('tipo_alerta').optional().isIn(alertTypes).withMessage('tipo_alerta invalido'),
   body('severidad').isIn(alertSeverities).withMessage('severidad debe ser LEVE, MODERADA, GRAVE o CRITICA'),
-  body('descripcion').trim().isLength({ min: 10 }).withMessage('descripcion es obligatoria'),
+  body('descripcion').trim().isLength({ min: 20, max: 2000 }).withMessage('descripcion debe tener entre 20 y 2000 caracteres'),
 ];
 
 const updateStatusValidations = [
-  body('estado').isIn(alertStates).withMessage('estado debe ser ACTIVA, EN_SEGUIMIENTO o CERRADA'),
+  body('estado').isIn(alertStates).withMessage('estado debe ser ABIERTA o CERRADA'),
   body('justificacion_cierre')
     .if(body('estado').equals('CERRADA'))
     .trim()
@@ -65,6 +64,13 @@ const updateStatusValidations = [
     .withMessage('justificacion_cierre es obligatoria al cerrar una alerta')
     .isLength({ min: 20, max: 2000 })
     .withMessage('justificacion_cierre debe tener entre 20 y 2000 caracteres'),
+  body('justificacion_reapertura')
+    .if(body('estado').equals('ABIERTA'))
+    .trim()
+    .notEmpty()
+    .withMessage('justificacion_reapertura es obligatoria al reabrir una alerta')
+    .isLength({ min: 20, max: 2000 })
+    .withMessage('justificacion_reapertura debe tener entre 20 y 2000 caracteres'),
 ];
 
 router.get(

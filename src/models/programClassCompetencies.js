@@ -1,47 +1,37 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 
-const User = sequelize.define(
-  'User',
+const ProgramClassCompetency = sequelize.define(
+  'ProgramClassCompetency',
   {
-    id_usuario: {
+    id_programa_clase_competencia: {
       type: DataTypes.BIGINT.UNSIGNED,
       primaryKey: true,
       autoIncrement: true,
     },
-    email: {
-      type: DataTypes.STRING(120),
-      allowNull: false,
-      unique: true,
-    },
-    password: {
-      type: DataTypes.STRING(255),
+    id_programa: {
+      type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
-    id_rol: {
+    id_clase_competencia: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
     estado: {
-      type: DataTypes.ENUM('ACTIVO', 'INACTIVO', 'BLOQUEADO'),
+      type: DataTypes.ENUM('ACTIVO', 'INACTIVO'),
       allowNull: false,
       defaultValue: 'ACTIVO',
     },
-    debe_cambiar_password: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-    },
-    created_at: {
+    creado_en: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
   },
   {
-    tableName: 'usuarios',
+    tableName: 'programa_clase_competencia',
     timestamps: false,
   }
 );
 
-module.exports = User;
+module.exports = ProgramClassCompetency;

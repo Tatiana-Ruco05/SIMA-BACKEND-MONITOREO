@@ -9,6 +9,7 @@ const {
   EducationalArea,
   FormativeProgram,
   Group,
+  InstructorGroup,
   Person,
   Role,
   User,
@@ -24,7 +25,7 @@ const {
 
 class ApprenticeService {
   static async _obtenerGrupoActivoPorFicha(numero_ficha, transaction) {
-    return Group.findOne({ where: { numero_ficha, estado: 'ACTIVO' }, transaction });
+    return Group.findOne({ where: { numero_ficha, estado: 'EN_FORMACION' }, transaction });
   }
 
   static async _validarPermisoSobreFicha(requester, grupo, transaction) {
@@ -63,7 +64,7 @@ class ApprenticeService {
     const { tipo_documento, numero_documento, nombres, apellidos, email, telefono, numero_ficha } = datos;
 
     const grupo = await this._obtenerGrupoActivoPorFicha(numero_ficha, transaction);
-    if (!grupo) throw { status: 400, message: `La ficha '${numero_ficha}' no existe o no tiene estado ACTIVO` };
+    if (!grupo) throw { status: 400, message: `La ficha '${numero_ficha}' no existe o no se encuentra en formacion` };
 
     await this._validarPermisoSobreFicha(requester, grupo, transaction);
 
@@ -138,7 +139,13 @@ class ApprenticeService {
       const passwordHash = await hashPassword(numero_documento);
 
       usuario = await User.create(
-        { email, password: passwordHash, id_rol: rolAprendiz.id_rol, estado: 'ACTIVO' },
+        {
+          email,
+          password: passwordHash,
+          id_rol: rolAprendiz.id_rol,
+          estado: 'ACTIVO',
+          debe_cambiar_password: true,
+        },
         { transaction }
       );
 
@@ -442,8 +449,8 @@ class ApprenticeService {
     }
 
     return Group.findAll({
-      where: { estado: 'ACTIVO', id_grupo: { [Op.in]: accessibleGroupIds } },
-      attributes: ['id_grupo', 'numero_ficha', 'jornada', 'fecha_inicio', 'fecha_fin', 'id_instructor_lider'],
+      where: { estado: 'EN_FORMACION', id_grupo: { [Op.in]: accessibleGroupIds } },
+      attributes: ['id_grupo', 'numero_ficha', 'jornada', 'fecha_inicio', 'fecha_fin', 'estado', 'id_instructor_lider'],
       include: [
         {
           model: FormativeProgram,
@@ -454,6 +461,46 @@ class ApprenticeService {
       ],
       order: [['numero_ficha', 'ASC']],
     });
+  }
+
+  static _serializeLimitedApprentice(aprendiz, matchingGroupIds) {
+    const data = typeof aprendiz.toJSON === 'function' ? aprendiz.toJSON() : aprendiz;
+
+    return {
+      id_aprendiz: data.id_aprendiz,
+      estado: data.estado,
+      estado_formativo: data.estado_formativo,
+      usuario: {
+        id_usuario: data.usuario?.id_usuario || null,
+        estado: data.usuario?.estado || null,
+      },
+      persona: {
+        nombres: data.usuario?.persona?.nombres || null,
+        apellidos: data.usuario?.persona?.apellidos || null,
+        numero_documento: data.usuario?.persona?.numero_documento || null,
+      },
+      aprendiz_grupos: (data.aprendiz_grupos || [])
+        .filter((item) => matchingGroupIds.includes(Number(item.grupo?.id_grupo)))
+        .map((item) => ({
+          id_aprendiz_grupo: item.id_aprendiz_grupo,
+          estado: item.estado,
+          grupo: item.grupo
+            ? {
+                id_grupo: item.grupo.id_grupo,
+                numero_ficha: item.grupo.numero_ficha,
+                jornada: item.grupo.jornada,
+                estado: item.grupo.estado,
+                programa_formacion: item.grupo.programa_formacion
+                  ? {
+                      id_programa: item.grupo.programa_formacion.id_programa,
+                      nombre_programa: item.grupo.programa_formacion.nombre_programa,
+                    }
+                  : null,
+              }
+            : null,
+        })),
+      acceso: 'limitado',
+    };
   }
 
   static async getById(id, requester) {
@@ -474,7 +521,7 @@ class ApprenticeService {
             {
               model: Group,
               as: 'grupo',
-              attributes: ['id_grupo', 'numero_ficha', 'jornada', 'estado', 'fecha_inicio', 'fecha_fin'],
+              attributes: ['id_grupo', 'numero_ficha', 'jornada', 'estado', 'fecha_inicio', 'fecha_fin', 'id_instructor_lider'],
               include: [
                 {
                   model: FormativeProgram,
@@ -501,6 +548,31 @@ class ApprenticeService {
 
     if (!hasIntersection) {
       throw { status: 403, message: 'No tienes permisos para consultar este aprendiz' };
+    }
+
+    if (requester.rol === 'instructor') {
+      const leaderGroupIds = (aprendiz.aprendiz_grupos || [])
+        .filter((item) => activeGroups.includes(Number(item.grupo?.id_grupo)))
+        .filter((item) => Number(item.grupo?.id_instructor_lider) === Number(requester.id_instructor))
+        .map((item) => Number(item.grupo.id_grupo));
+
+      if (leaderGroupIds.length) {
+        return aprendiz;
+      }
+
+      const assignedLinks = await InstructorGroup.findAll({
+        where: {
+          id_instructor: requester.id_instructor,
+          id_grupo: { [Op.in]: activeGroups },
+          estado: 'ACTIVO',
+        },
+        attributes: ['id_grupo'],
+      });
+      const assignedGroupIds = assignedLinks.map((item) => Number(item.id_grupo));
+
+      if (assignedGroupIds.length) {
+        return this._serializeLimitedApprentice(aprendiz, assignedGroupIds);
+      }
     }
 
     return aprendiz;

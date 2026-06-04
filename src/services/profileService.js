@@ -20,7 +20,7 @@ class ProfileService {
 
     // Obtener información base (excluyendo password)
     const user = await User.findByPk(id_usuario, {
-      attributes: ['id_usuario', 'email', 'estado'],
+      attributes: ['id_usuario', 'email', 'estado', 'debe_cambiar_password'],
       include: [
         {
           model: Role,
@@ -41,6 +41,7 @@ class ProfileService {
       id_usuario: user.id_usuario,
       email: user.email,
       estado: user.estado,
+      debe_cambiar_password: Boolean(user.debe_cambiar_password),
       rol: user.rol?.nombre,
       persona: user.persona,
       informacion_rol: {},
@@ -76,7 +77,7 @@ class ProfileService {
     else if (rol === 'instructor' && id_instructor) {
       // Grupos donde lidera
       const ledGroups = await Group.findAll({
-        where: { id_instructor_lider: id_instructor, estado: 'ACTIVO' },
+        where: { id_instructor_lider: id_instructor, estado: { [Op.ne]: 'FINALIZADO' } },
         attributes: ['numero_ficha'],
       });
       
@@ -139,6 +140,7 @@ class ProfileService {
         }
 
         userUpdateData.password = await bcrypt.hash(password_nuevo, 10);
+        userUpdateData.debe_cambiar_password = false;
       }
 
       if (Object.keys(userUpdateData).length > 0) {

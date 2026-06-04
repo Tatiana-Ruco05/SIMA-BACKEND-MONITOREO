@@ -143,7 +143,16 @@ const assertRequesterCanAccessGroup = async (
 };
 
 const assertRequesterCanRegisterApprenticeInGroup = async (requester, grupo, transaction) => {
-  if (requester.rol === 'coordinador') return true;
+  if (requester.rol === 'coordinador') {
+    const hasAccess = await checkCoordinatorGroupAccess(requester.id_usuario, grupo.id_grupo);
+    if (!hasAccess) {
+      throw {
+        status: 403,
+        message: 'Solo puedes gestionar aprendices de grupos formativos pertenecientes a tus areas asignadas',
+      };
+    }
+    return true;
+  }
 
   if (requester.rol !== 'instructor') {
     throw { status: 403, message: 'No tienes permisos para registrar aprendices' };

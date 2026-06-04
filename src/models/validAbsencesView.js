@@ -12,11 +12,27 @@ const ValidAbsencesView = sequelize.define(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
+    id_sesion_formacion: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
     id_grupo: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
     id_horario: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
+    id_grupo_trimestre: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
+    id_clase_competencia: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
+    id_bloque_jornada: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },

@@ -48,7 +48,7 @@ const updateUser = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await UserService.deleteUser(id);
+    const result = await UserService.deleteUser(id, req.user);
     return successResponse(res, 'Usuario deshabilitado correctamente', result);
   } catch (error) {
     return errorResponse(res, error.message || 'Error al deshabilitar usuario', error.status || 500);

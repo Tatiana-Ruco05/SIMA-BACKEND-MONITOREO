@@ -26,7 +26,7 @@ const Alert = sequelize.define(
       allowNull: false,
     },
     regla_disparo: {
-      type: DataTypes.ENUM('3_CONSECUTIVAS', '5_DISTINTOS_DIAS', 'OBSERVACIONES_RECURRENTES', 'MANUAL'),
+      type: DataTypes.ENUM('3_CONSECUTIVAS', '5_TRIMESTRE', 'OBSERVACIONES_RECURRENTES', 'MANUAL'),
       allowNull: true,
     },
     origen: {
@@ -43,9 +43,9 @@ const Alert = sequelize.define(
       allowNull: false,
     },
     estado: {
-      type: DataTypes.ENUM('ACTIVA', 'EN_SEGUIMIENTO', 'CERRADA'),
+      type: DataTypes.ENUM('ABIERTA', 'CERRADA'),
       allowNull: false,
-      defaultValue: 'ACTIVA',
+      defaultValue: 'ABIERTA',
     },
     fecha_alerta: {
       type: DataTypes.DATE,
@@ -58,6 +58,10 @@ const Alert = sequelize.define(
     },
     fecha_fin_evaluada: {
       type: DataTypes.DATEONLY,
+      allowNull: true,
+    },
+    fecha_ultima_evaluacion: {
+      type: DataTypes.DATE,
       allowNull: true,
     },
     creada_por: {
@@ -73,6 +77,18 @@ const Alert = sequelize.define(
       allowNull: true,
     },
     cerrada_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    justificacion_reapertura: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    fecha_reapertura: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    reabierta_por: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: true,
     },
