@@ -648,7 +648,7 @@ Esperado:
 
 ### Caso G1. Coordinador lista grupos de sus areas
 
-- `GET {{base_url}}/api/groups?page=1&limit=10&estado=ACTIVO`
+- `GET {{base_url}}/api/groups?page=1&limit=10&estado=EN_FORMACION`
 - token: `token_coordinador`
 
 Esperado:
@@ -704,14 +704,15 @@ Esperado:
 - `200 OK`
 - retorna instructores activos disponibles para seleccion en el formulario del grupo
 
-### Caso G7. Instructor intenta consultar instructores disponibles
+### Caso G7. Instructor lider consulta instructores disponibles
 
 - `GET {{base_url}}/api/groups/instructores-disponibles`
 - token: `token_instructor_lider`
 
 Esperado:
 
-- `403 Forbidden`
+- `200 OK`
+- retorna instructores activos para asignacion de apoyo
 
 ### Caso G8. Coordinador crea grupo en programa permitido
 
@@ -777,7 +778,7 @@ Body:
 
 ```json
 {
-  "estado": "CERRADO"
+  "estado": "FINALIZADO"
 }
 ```
 
@@ -794,7 +795,7 @@ Body:
 
 ```json
 {
-  "estado": "SUSPENDIDO"
+  "estado": "PRACTICAS"
 }
 ```
 
@@ -878,7 +879,7 @@ Body:
 
 ```json
 {
-  "estado": "FINALIZADO"
+  "estado": "CERRADO"
 }
 ```
 
@@ -886,6 +887,42 @@ Esperado:
 
 - `400 Bad Request`
 - respuesta con `ok: false`
+
+### Caso G16.1. Instructor lider asigna instructor de apoyo
+
+- `POST {{base_url}}/api/instructor-groups/grupo/{{id_grupo_lider}}`
+- token: `token_instructor_lider`
+
+Body:
+
+```json
+{
+  "id_instructor": "{{id_instructor_apoyo_activo}}"
+}
+```
+
+Esperado:
+
+- `201 Created`
+- la relacion queda registrada en `instructor_grupo`
+- si ya existia, se reactiva y no se duplica
+
+### Caso G16.2. Instructor asignado intenta asignar apoyo
+
+- `POST {{base_url}}/api/instructor-groups/grupo/{{id_grupo_asignado}}`
+- token: `token_instructor_asignado`
+
+Body:
+
+```json
+{
+  "id_instructor": "{{id_instructor_apoyo_activo}}"
+}
+```
+
+Esperado:
+
+- `403 Forbidden`
 
 ### Caso G17. Coordinador intenta asignar instructor inactivo como lider
 
@@ -2023,3 +2060,19 @@ La validacion funcional se considera satisfactoria cuando:
 - no hay endpoints documentados que respondan distinto a lo esperado
 - no aparecen fugas de informacion entre grupos o aprendices fuera de alcance
 - los casos de validacion negativa responden con el codigo HTTP documentado
+## Actualizacion EP04 - Alertas y notificaciones
+
+### Casos funcionales minimos
+
+| Caso | Accion | Resultado esperado |
+|---|---|---|
+| Crear alerta desde observaciones | `POST /api/alerts/from-observations` con descripcion de 20 a 2000 caracteres | La alerta queda `ABIERTA` y las observaciones asociadas quedan cerradas. |
+| Consultar alertas como instructor asignado | `GET /api/alerts` autenticado como instructor no lider | Solo retorna alertas creadas por ese instructor. |
+| Consultar alertas como instructor lider | `GET /api/alerts?id_grupo=<grupo>` | Retorna las alertas del grupo liderado. |
+| Cerrar alerta | `PATCH /api/alerts/:id/status` con `estado=CERRADA` y `justificacion_cierre` | La alerta queda `CERRADA`; si ya estaba cerrada retorna conflicto. |
+| Reabrir alerta | `PATCH /api/alerts/:id/status` con `estado=ABIERTA` y `justificacion_reapertura` | Solo coordinacion puede reabrir; no se permite si el grupo esta finalizado o el aprendiz esta inactivo. |
+| Desactivar aprendiz | Desactivar usuario con perfil aprendiz | Las alertas `ABIERTA` del aprendiz quedan cerradas administrativamente. |
+| Cinco inasistencias por trimestre | Ejecutar reevaluacion de asistencia | Se genera o actualiza alerta asistencial `CRITICA` con regla `5_TRIMESTRE`. |
+| Notificaciones en tiempo real | Abrir `GET /api/notifications/stream?token=<jwt>` y crear/cerrar/reabrir alerta | El cliente recibe un evento SSE `notification`. |
+
+Estados historicos `ACTIVA` y `EN_SEGUIMIENTO` ya no hacen parte del contrato EP04 de alertas.

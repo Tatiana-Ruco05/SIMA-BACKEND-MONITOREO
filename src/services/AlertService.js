@@ -3,10 +3,10 @@ const {
   sequelize,
   Alert,
   AlertObservation,
-  Notification,
   Observation,
   ValidAbsencesView,
   ApprenticeGroup,
+  InstructorGroup,
   Group,
   FormativeProgram,
   Instructor,
@@ -17,8 +17,9 @@ const {
 } = require('../models');
 const { getAccessibleGroupIdsForRequester } = require('../helpers/coordinatorAuth');
 const ObservationService = require('./ObservationService');
+const NotificationService = require('./NotificationService');
 
-const ALERT_STATES_OPEN = ['ACTIVA', 'EN_SEGUIMIENTO'];
+const ALERT_STATES_OPEN = ['ABIERTA'];
 const ALERT_SEVERITIES = ['LEVE', 'MODERADA', 'GRAVE', 'CRITICA'];
 
 class AlertService {
@@ -107,6 +108,19 @@ class AlertService {
         ],
       },
       {
+        model: User,
+        as: 'usuario_reapertura',
+        required: false,
+        attributes: ['id_usuario', 'email'],
+        include: [
+          {
+            model: Person,
+            as: 'persona',
+            attributes: ['nombres', 'apellidos', 'numero_documento'],
+          },
+        ],
+      },
+      {
         model: Observation,
         as: 'observacion',
         required: false,
@@ -151,7 +165,7 @@ class AlertService {
     });
 
     if (!group) throw { status: 404, message: 'Grupo formativo no encontrado' };
-    if (group.estado !== 'ACTIVO') throw { status: 409, message: 'El grupo formativo no se encuentra activo' };
+    if (group.estado === 'FINALIZADO') throw { status: 409, message: 'El grupo formativo se encuentra finalizado' };
     return group;
   }
 
@@ -180,6 +194,62 @@ class AlertService {
     return accessibleGroupIds;
   }
 
+  static async _getInstructorGroupScope(requester) {
+    if (requester.rol !== 'instructor' || !requester.id_instructor) {
+      return { leaderGroupIds: [], assignedGroupIds: [] };
+    }
+
+    const [leaderGroups, assignedGroups] = await Promise.all([
+      Group.findAll({
+        where: { id_instructor_lider: requester.id_instructor },
+        attributes: ['id_grupo'],
+      }),
+      InstructorGroup.findAll({
+        where: { id_instructor: requester.id_instructor, estado: 'ACTIVO' },
+        attributes: ['id_grupo'],
+      }),
+    ]);
+
+    return {
+      leaderGroupIds: leaderGroups.map((group) => Number(group.id_grupo)),
+      assignedGroupIds: assignedGroups.map((link) => Number(link.id_grupo)),
+    };
+  }
+
+  static async _buildAlertAccessWhere(requester, filters = {}) {
+    const accessibleGroupIds = await this.getAccessibleGroupIdsForUser(requester);
+    if (!accessibleGroupIds.length) {
+      return { accessibleGroupIds, where: null };
+    }
+
+    if (filters.id_grupo && !accessibleGroupIds.includes(Number(filters.id_grupo))) {
+      throw { status: 403, message: 'No tienes permisos para consultar alertas de este grupo' };
+    }
+
+    const requestedGroupIds = filters.id_grupo ? [Number(filters.id_grupo)] : accessibleGroupIds;
+    if (requester.rol !== 'instructor') {
+      return { accessibleGroupIds, where: { id_grupo: { [Op.in]: requestedGroupIds } } };
+    }
+
+    const { leaderGroupIds, assignedGroupIds } = await this._getInstructorGroupScope(requester);
+    const leaderVisible = requestedGroupIds.filter((id) => leaderGroupIds.includes(Number(id)));
+    const assignedOnlyVisible = requestedGroupIds.filter(
+      (id) => assignedGroupIds.includes(Number(id)) && !leaderGroupIds.includes(Number(id))
+    );
+
+    const or = [];
+    if (leaderVisible.length) or.push({ id_grupo: { [Op.in]: leaderVisible } });
+    if (assignedOnlyVisible.length) {
+      or.push({
+        id_grupo: { [Op.in]: assignedOnlyVisible },
+        creada_por: requester.id_usuario,
+      });
+    }
+
+    if (!or.length) return { accessibleGroupIds, where: { id_alerta: null } };
+    return { accessibleGroupIds, where: or.length === 1 ? or[0] : { [Op.or]: or } };
+  }
+
   static async _assertInstructorCanCreateForGroup(requester, id_grupo) {
     if (requester.rol !== 'instructor' || !requester.id_instructor) {
       throw { status: 403, message: 'Solo un instructor activo puede crear alertas desde observaciones' };
@@ -190,12 +260,7 @@ class AlertService {
   }
 
   static async _createNotificationIfNotExists({ id_usuario, id_alerta, titulo, mensaje, tipo = 'ALERTA', transaction }) {
-    const existing = await Notification.findOne({
-      where: { id_usuario, id_alerta, titulo, mensaje, tipo, leida: false },
-      transaction,
-    });
-    if (existing) return existing;
-    return Notification.create({ id_usuario, id_alerta, titulo, mensaje, tipo, leida: false }, { transaction });
+    return NotificationService.createForUser({ id_usuario, id_alerta, titulo, mensaje, tipo, transaction });
   }
 
   static async _notifyCoordinatorsForGroup({ alert, group, transaction }) {
@@ -215,6 +280,32 @@ class AlertService {
         titulo: 'Nueva alerta de aprendiz',
         mensaje: `Se registro una alerta ${alert.severidad} en un grupo de una de tus areas asignadas.`,
         transaction,
+      });
+    }
+  }
+
+  static async _notifyLeaderAndCreatorForStatusChange({ alert, group, titulo, mensaje }) {
+    const notified = new Set();
+
+    if (group?.id_instructor_lider) {
+      const leader = await Instructor.findByPk(group.id_instructor_lider, { attributes: ['id_usuario'] });
+      if (leader?.id_usuario) {
+        await this._createNotificationIfNotExists({
+          id_usuario: leader.id_usuario,
+          id_alerta: alert.id_alerta,
+          titulo,
+          mensaje,
+        });
+        notified.add(String(leader.id_usuario));
+      }
+    }
+
+    if (alert.creada_por && !notified.has(String(alert.creada_por))) {
+      await this._createNotificationIfNotExists({
+        id_usuario: alert.creada_por,
+        id_alerta: alert.id_alerta,
+        titulo,
+        mensaje,
       });
     }
   }
@@ -330,6 +421,7 @@ class AlertService {
       descripcion,
       fecha_inicio_evaluada: fechaInicio,
       fecha_fin_evaluada: fechaFin,
+      fecha_ultima_evaluacion: new Date(),
       creada_por,
     };
     let created = false;
@@ -337,7 +429,7 @@ class AlertService {
     if (alert) {
       await alert.update(payload, { transaction });
     } else {
-      alert = await Alert.create({ ...payload, estado: 'ACTIVA' }, { transaction });
+      alert = await Alert.create({ ...payload, estado: 'ABIERTA' }, { transaction });
       created = true;
     }
 
@@ -362,7 +454,6 @@ class AlertService {
       severidad,
       descripcion,
       observationIds,
-      notificar_coordinador = false,
     } = data;
 
     const idInstructorGenerador = await this._assertInstructorCanCreateForGroup(requester, id_grupo);
@@ -382,7 +473,7 @@ class AlertService {
         descripcion,
         idInstructorGenerador,
         creada_por: requester.id_usuario,
-        notifyCoordinators: notificar_coordinador === true || notificar_coordinador === 'true',
+        notifyCoordinators: true,
         notifyCoordinatorsWhenSevere: false,
         transaction,
       });
@@ -431,6 +522,8 @@ class AlertService {
       descripcion,
       idInstructorGenerador,
       creada_por: requester.id_usuario,
+      notifyCoordinators: true,
+      notifyCoordinatorsWhenSevere: false,
     });
 
     return this.getAlertById(alert.id_alerta, requester);
@@ -443,15 +536,15 @@ class AlertService {
       return null;
     }
 
-    const byGroup = rows.reduce((acc, row) => {
-      const key = String(row.id_grupo);
+    const byGroupTrimester = rows.reduce((acc, row) => {
+      const key = `${row.id_grupo}:${row.id_grupo_trimestre || 'sin_trimestre'}`;
       if (!acc[key]) acc[key] = [];
       acc[key].push(row);
       return acc;
     }, {});
 
     const results = [];
-    for (const groupRows of Object.values(byGroup)) {
+    for (const groupRows of Object.values(byGroupTrimester)) {
       const dates = groupRows.map((r) => this._normalizeDate(r.fecha_clase));
       const uniqueDates = [...new Set(dates.map((d) => d.toISOString().slice(0, 10)))];
 
@@ -488,10 +581,10 @@ class AlertService {
           id_aprendiz,
           id_grupo: latest.id_grupo,
           tipo_alerta: 'ASISTENCIAL',
-          regla_disparo: '5_DISTINTOS_DIAS',
+          regla_disparo: '5_TRIMESTRE',
           origen: 'AUTOMATICA',
-          severidad: 'MODERADA',
-          descripcion: 'Se detectaron 5 o mas inasistencias en dias distintos sin justificacion aprobada.',
+          severidad: 'CRITICA',
+          descripcion: 'Se detectaron 5 o mas inasistencias en el mismo trimestre sin justificacion aprobada.',
           fechaInicio: groupRows[0].fecha_clase,
           fechaFin: latest.fecha_clase,
         }));
@@ -600,7 +693,8 @@ class AlertService {
   }
 
   static _getAlertPagination(filters = {}) {
-    const limit = Number(filters.limit) > 0 ? Number(filters.limit) : 10;
+    const requestedLimit = Number(filters.limit) > 0 ? Number(filters.limit) : 5;
+    const limit = Math.min(requestedLimit, 50);
     const page = Number(filters.page) > 0 ? Number(filters.page) : 1;
     const offset = Number(filters.offset) >= 0 ? Number(filters.offset) : (page - 1) * limit;
 
@@ -612,8 +706,9 @@ class AlertService {
       throw { status: 403, message: 'No tienes permisos para consultar alertas' };
     }
 
-    const accessibleGroupIds = await this.getAccessibleGroupIdsForUser(requester);
     const { limit, offset, page } = this._getAlertPagination(filters);
+    const access = await this._buildAlertAccessWhere(requester, filters);
+    const accessibleGroupIds = access.accessibleGroupIds;
     if (!accessibleGroupIds.length) {
       return {
         total: 0,
@@ -625,11 +720,7 @@ class AlertService {
       };
     }
 
-    if (filters.id_grupo && !accessibleGroupIds.includes(Number(filters.id_grupo))) {
-      throw { status: 403, message: 'No tienes permisos para consultar alertas de este grupo' };
-    }
-
-    const where = this._applyAlertFilters({ id_grupo: { [Op.in]: accessibleGroupIds } }, filters);
+    const where = this._applyAlertFilters(access.where, filters);
     const search = typeof filters.q === 'string' && filters.q.trim() ? filters.q.trim() : null;
 
     const { count, rows } = await Alert.findAndCountAll({
@@ -662,8 +753,20 @@ class AlertService {
 
     if (!alert) throw { status: 404, message: 'Alerta no encontrada' };
 
-    const accessibleGroupIds = await this.getAccessibleGroupIdsForUser(requester);
-    if (!accessibleGroupIds.includes(Number(alert.id_grupo))) {
+    const access = await this._buildAlertAccessWhere(requester, { id_grupo: alert.id_grupo });
+    if (!access.where) {
+      throw { status: 403, message: 'No tienes permisos para consultar esta alerta' };
+    }
+    const canSee = await Alert.count({
+      where: {
+        [Op.and]: [
+          { id_alerta: alert.id_alerta },
+          access.where,
+        ],
+      },
+    });
+
+    if (!canSee) {
       throw { status: 403, message: 'No tienes permisos para consultar esta alerta' };
     }
 
@@ -675,21 +778,26 @@ class AlertService {
     return alert.alerta_observaciones || [];
   }
 
-  static async updateAlertStatus(id, estado, requester, justificacion_cierre) {
+  static async updateAlertStatus(id, estado, requester, justificacion_cierre, justificacion_reapertura) {
     if (requester.rol !== 'coordinador') {
-      throw { status: 403, message: 'Solo el coordinador puede cerrar o actualizar alertas' };
+      throw { status: 403, message: 'Solo el coordinador puede cerrar o reabrir alertas' };
     }
 
-    const allowedStates = ['ACTIVA', 'EN_SEGUIMIENTO', 'CERRADA'];
+    const allowedStates = ['ABIERTA', 'CERRADA'];
     if (!estado || !allowedStates.includes(estado)) {
-      throw { status: 400, message: 'El estado es obligatorio y debe ser ACTIVA, EN_SEGUIMIENTO o CERRADA' };
+      throw { status: 400, message: 'El estado es obligatorio y debe ser ABIERTA o CERRADA' };
     }
 
-    const alert = await Alert.findByPk(id);
+    const alert = await Alert.findByPk(id, {
+      include: [{ model: Group, as: 'grupo', attributes: ['id_grupo', 'numero_ficha', 'estado', 'id_instructor_lider'] }],
+    });
     if (!alert) throw { status: 404, message: 'Alerta no encontrada' };
 
-    if (alert.estado === 'CERRADA') {
+    if (estado === 'CERRADA' && alert.estado === 'CERRADA') {
       throw { status: 409, message: 'La alerta ya se encuentra cerrada' };
+    }
+    if (estado === 'ABIERTA' && alert.estado === 'ABIERTA') {
+      throw { status: 409, message: 'La alerta ya se encuentra abierta' };
     }
 
     await this._assertRequesterCanAccessGroup(requester, alert.id_grupo);
@@ -711,7 +819,38 @@ class AlertService {
       updateData.cerrada_por = requester.id_usuario;
     }
 
+    if (estado === 'ABIERTA') {
+      await this._getGroupWithProgram(alert.id_grupo);
+      await this._assertApprenticeActiveInGroup(alert.id_aprendiz, alert.id_grupo);
+
+      const justificacionReapertura = typeof justificacion_reapertura === 'string'
+        ? justificacion_reapertura.trim()
+        : '';
+
+      if (justificacionReapertura.length < 20 || justificacionReapertura.length > 2000) {
+        throw {
+          status: 400,
+          message: 'justificacion_reapertura debe tener entre 20 y 2000 caracteres',
+        };
+      }
+
+      updateData.justificacion_reapertura = justificacionReapertura;
+      updateData.fecha_reapertura = new Date();
+      updateData.reabierta_por = requester.id_usuario;
+    }
+
     await alert.update(updateData);
+    const actionTitle = estado === 'CERRADA' ? 'Alerta cerrada' : 'Alerta reabierta';
+    const actionMessage = estado === 'CERRADA'
+      ? `La alerta ${alert.tipo_alerta} fue cerrada por coordinacion.`
+      : `La alerta ${alert.tipo_alerta} fue reabierta por coordinacion.`;
+    await this._notifyLeaderAndCreatorForStatusChange({
+      alert,
+      group: alert.grupo,
+      titulo: actionTitle,
+      mensaje: actionMessage,
+    });
+
     return this.getAlertById(id, requester);
   }
 }

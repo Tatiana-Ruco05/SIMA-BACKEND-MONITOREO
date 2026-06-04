@@ -1,11 +1,14 @@
 const { Op } = require('sequelize');
 
 const {
+  sequelize,
   Group,
+  GroupTrimester,
   FormativeProgram,
   EducationalArea,
   Environment,
   Instructor,
+  InstructorGroup,
   User,
   Person,
 } = require('../models');
@@ -19,10 +22,73 @@ const {
 } = require('../helpers/coordinatorAuth');
 
 class GroupService {
+  static get GROUP_STATES() {
+    return ['EN_FORMACION', 'PRACTICAS', 'FINALIZADO'];
+  }
+
   static _calculateEndDate(startDate, trimesters) {
     const date = new Date(startDate);
     date.setMonth(date.getMonth() + trimesters * 3);
     return date.toISOString().split('T')[0];
+  }
+
+  static _todayDateOnly() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  static async _calculateFunctionalState(group, transaction) {
+    const today = this._todayDateOnly();
+
+    if (group.fecha_fin && String(group.fecha_fin) <= today) {
+      return 'FINALIZADO';
+    }
+
+    const lastTrimester = await GroupTrimester.findOne({
+      where: { id_grupo: group.id_grupo },
+      order: [['numero_trimestre', 'DESC'], ['fecha_fin', 'DESC']],
+      attributes: ['fecha_fin'],
+      transaction,
+    });
+
+    if (lastTrimester?.fecha_fin && String(lastTrimester.fecha_fin) < today) {
+      return 'PRACTICAS';
+    }
+
+    return 'EN_FORMACION';
+  }
+
+  static async _syncGroupStateByDates(group, transaction) {
+    const nextState = await this._calculateFunctionalState(group, transaction);
+
+    if (group.estado !== nextState) {
+      await group.update({ estado: nextState }, { transaction });
+      group.estado = nextState;
+    }
+
+    return group;
+  }
+
+  static async _ensureInstructorGroupAssignment(id_instructor, id_grupo, id_usuario_asignador, transaction) {
+    const existing = await InstructorGroup.findOne({
+      where: { id_instructor, id_grupo },
+      transaction,
+    });
+
+    if (existing) {
+      await existing.update({
+        estado: 'ACTIVO',
+        fecha_fin: null,
+        asignado_por: id_usuario_asignador || existing.asignado_por,
+      }, { transaction });
+      return existing;
+    }
+
+    return InstructorGroup.create({
+      id_instructor,
+      id_grupo,
+      estado: 'ACTIVO',
+      asignado_por: id_usuario_asignador || null,
+    }, { transaction });
   }
 
   static get _includeRelations() {
@@ -241,19 +307,37 @@ class GroupService {
 
     const fecha_fin = this._calculateEndDate(fecha_inicio, trimestres);
 
-    const newGroup = await Group.create({
-      numero_ficha,
-      id_programa,
-      jornada,
-      trimestres,
-      fecha_inicio,
-      fecha_fin,
-      id_ambiente: id_ambiente || null,
-      id_instructor_lider: id_instructor_lider || null,
-      estado: 'ACTIVO',
-    });
+    const transaction = await sequelize.transaction();
 
-    return Group.findByPk(newGroup.id_grupo, { include: this._includeRelations });
+    try {
+      const newGroup = await Group.create({
+        numero_ficha,
+        id_programa,
+        jornada,
+        trimestres,
+        fecha_inicio,
+        fecha_fin,
+        id_ambiente: id_ambiente || null,
+        id_instructor_lider: id_instructor_lider || null,
+        estado: 'EN_FORMACION',
+      }, { transaction });
+
+      if (id_instructor_lider) {
+        await this._ensureInstructorGroupAssignment(
+          id_instructor_lider,
+          newGroup.id_grupo,
+          requester.id_usuario,
+          transaction
+        );
+      }
+
+      await transaction.commit();
+
+      return Group.findByPk(newGroup.id_grupo, { include: this._includeRelations });
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   static async updateGroup(id, data, requester) {
@@ -261,6 +345,12 @@ class GroupService {
 
     const group = await this._findGroupOrFail(id);
     await this._assertCoordinatorCanManageGroup(requester, id, 'No tienes permisos para actualizar este grupo');
+
+    await this._syncGroupStateByDates(group);
+
+    if (group.estado === 'FINALIZADO') {
+      throw { status: 409, message: 'No se pueden actualizar datos basicos de un grupo finalizado' };
+    }
 
     if (id_programa !== undefined) {
       await this._assertCoordinatorCanManageProgram(
@@ -301,13 +391,18 @@ class GroupService {
   }
 
   static async changeGroupStatus(id, estado, requester) {
-    const allowedStates = ['ACTIVO', 'CERRADO', 'SUSPENDIDO'];
-    if (!estado || !allowedStates.includes(estado)) {
-      throw { status: 400, message: 'El estado es obligatorio y debe ser ACTIVO, CERRADO o SUSPENDIDO' };
+    if (!estado || !this.GROUP_STATES.includes(estado)) {
+      throw { status: 400, message: 'El estado es obligatorio y debe ser EN_FORMACION, PRACTICAS o FINALIZADO' };
     }
 
     const group = await this._findGroupOrFail(id);
     await this._assertCoordinatorCanManageGroup(requester, id, 'No tienes permisos para actualizar este grupo');
+
+    await this._syncGroupStateByDates(group);
+
+    if (group.estado === 'FINALIZADO' && estado !== 'FINALIZADO') {
+      throw { status: 409, message: 'Un grupo finalizado no puede reabrirse' };
+    }
 
     await group.update({ estado });
     return group;
@@ -316,13 +411,42 @@ class GroupService {
   static async assignInstructorLeader(id, id_instructor, requester) {
     await this._assertCoordinatorCanManageGroup(requester, id, 'No tienes permisos para asignar lider a este grupo');
 
-    await this._findGroupOrFail(id);
+    const group = await this._findGroupOrFail(id);
     await this._findActiveInstructorOrFail(id_instructor);
 
-    const group = await Group.findByPk(id);
-    await group.update({ id_instructor_lider: id_instructor });
+    await this._syncGroupStateByDates(group);
 
-    return Group.findByPk(id, { include: this._includeRelations });
+    if (group.estado === 'FINALIZADO') {
+      throw { status: 409, message: 'No se puede cambiar el instructor lider de un grupo finalizado' };
+    }
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      if (group.id_instructor_lider && Number(group.id_instructor_lider) !== Number(id_instructor)) {
+        await InstructorGroup.update(
+          { estado: 'INACTIVO', fecha_fin: new Date() },
+          {
+            where: {
+              id_instructor: group.id_instructor_lider,
+              id_grupo: id,
+              estado: 'ACTIVO',
+            },
+            transaction,
+          }
+        );
+      }
+
+      await group.update({ id_instructor_lider: id_instructor }, { transaction });
+      await this._ensureInstructorGroupAssignment(id_instructor, id, requester.id_usuario, transaction);
+
+      await transaction.commit();
+
+      return Group.findByPk(id, { include: this._includeRelations });
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   static async getAvailableInstructors() {

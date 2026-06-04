@@ -59,6 +59,18 @@ La estructura principal del proyecto se carga desde:
 
 Actualmente el proyecto no usa migraciones activas de Sequelize como fuente del esquema.
 
+## Contrato EP04 - Alertas y notificaciones
+
+- Los estados funcionales de alertas son `ABIERTA` y `CERRADA`.
+- La reapertura de alertas se realiza enviando `estado=ABIERTA` a `PATCH /api/alerts/:id/status` con `justificacion_reapertura`.
+- El cierre de alertas se realiza enviando `estado=CERRADA` a `PATCH /api/alerts/:id/status` con `justificacion_cierre`.
+- Las justificaciones de cierre y reapertura deben tener entre 20 y 2000 caracteres.
+- Las notificaciones se consultan en `GET /api/notifications`, se marcan como leidas en `PATCH /api/notifications/:id/read` y `PATCH /api/notifications/read-all`.
+- El stream de notificaciones en tiempo real usa SSE en `GET /api/notifications/stream?token=<jwt>`.
+- La regla automatica de cinco inasistencias se evalua por trimestre con `regla_disparo=5_TRIMESTRE` y severidad `CRITICA`.
+
+Para bases de datos ya creadas, los cambios de `basededatos.sql` deben aplicarse manualmente o recrear el esquema desde el script actualizado.
+
 ## Instalacion
 
 ```bash

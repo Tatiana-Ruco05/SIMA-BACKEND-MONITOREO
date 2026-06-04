@@ -8,9 +8,13 @@ const Apprentice = require('./apprentices');
 
 const EducationalArea = require('./educational_areas');
 const FormativeProgram = require('./formativePrograms');
+const ClassCompetency = require('./classCompetencies');
+const ProgramClassCompetency = require('./programClassCompetencies');
 const CoordinatorArea = require('./coordinatorAreas');
 const Environment = require('./environments');
 const Group = require('./groups');
+const GroupTrimester = require('./groupTrimesters');
+const JourneyBlock = require('./journeyBlocks');
 const EducationalSchedule = require('./educational_schedules');
 const EducationalSession = require('./EducationalSession');
 
@@ -21,6 +25,7 @@ const ApprenticeGroup = require('./apprenticeGroups');
 const InstructorGroup = require('./instructorGroups');
 
 const Attendance = require('./attendances');
+const AttendanceEvidence = require('./attendanceEvidences');
 const Observation = require('./observations');
 const Alert = require('./alerts');
 const AlertObservation = require('./alertObservation');
@@ -94,6 +99,40 @@ EducationalArea.hasMany(FormativeProgram, {
   as: 'programas',
 });
 
+ProgramClassCompetency.belongsTo(FormativeProgram, {
+  foreignKey: 'id_programa',
+  as: 'programa',
+});
+
+FormativeProgram.hasMany(ProgramClassCompetency, {
+  foreignKey: 'id_programa',
+  as: 'programa_competencias',
+});
+
+ProgramClassCompetency.belongsTo(ClassCompetency, {
+  foreignKey: 'id_clase_competencia',
+  as: 'competencia',
+});
+
+ClassCompetency.hasMany(ProgramClassCompetency, {
+  foreignKey: 'id_clase_competencia',
+  as: 'programas_competencia',
+});
+
+FormativeProgram.belongsToMany(ClassCompetency, {
+  through: ProgramClassCompetency,
+  foreignKey: 'id_programa',
+  otherKey: 'id_clase_competencia',
+  as: 'competencias',
+});
+
+ClassCompetency.belongsToMany(FormativeProgram, {
+  through: ProgramClassCompetency,
+  foreignKey: 'id_clase_competencia',
+  otherKey: 'id_programa',
+  as: 'programas',
+});
+
 Group.belongsTo(FormativeProgram, {
   foreignKey: 'id_programa',
   as: 'programa_formacion',
@@ -112,6 +151,16 @@ Group.belongsTo(Environment, {
 Environment.hasMany(Group, {
   foreignKey: 'id_ambiente',
   as: 'grupos',
+});
+
+GroupTrimester.belongsTo(Group, {
+  foreignKey: 'id_grupo',
+  as: 'grupo',
+});
+
+Group.hasMany(GroupTrimester, {
+  foreignKey: 'id_grupo',
+  as: 'trimestres_grupo',
 });
 
 // =========================
@@ -153,33 +202,43 @@ Instructor.hasMany(Group, {
 // =========================
 // Horarios de formación
 // =========================
-EducationalSchedule.belongsTo(Group, {
-  foreignKey: 'id_grupo',
-  as: 'grupo',
+EducationalSchedule.belongsTo(GroupTrimester, {
+  foreignKey: 'id_grupo_trimestre',
+  as: 'grupo_trimestre',
 });
 
-Group.hasMany(EducationalSchedule, {
-  foreignKey: 'id_grupo',
+GroupTrimester.hasMany(EducationalSchedule, {
+  foreignKey: 'id_grupo_trimestre',
   as: 'horarios',
 });
 
-EducationalSchedule.belongsTo(Instructor, {
-  foreignKey: 'id_instructor',
-  as: 'instructor',
+EducationalSchedule.belongsTo(ClassCompetency, {
+  foreignKey: 'id_clase_competencia',
+  as: 'competencia',
 });
 
-Instructor.hasMany(EducationalSchedule, {
-  foreignKey: 'id_instructor',
+ClassCompetency.hasMany(EducationalSchedule, {
+  foreignKey: 'id_clase_competencia',
   as: 'horarios',
 });
 
-EducationalSchedule.belongsTo(Environment, {
-  foreignKey: 'id_ambiente',
-  as: 'ambiente',
+EducationalSchedule.belongsTo(InstructorGroup, {
+  foreignKey: 'id_instructor_grupo',
+  as: 'instructor_grupo',
 });
 
-Environment.hasMany(EducationalSchedule, {
-  foreignKey: 'id_ambiente',
+InstructorGroup.hasMany(EducationalSchedule, {
+  foreignKey: 'id_instructor_grupo',
+  as: 'horarios',
+});
+
+EducationalSchedule.belongsTo(JourneyBlock, {
+  foreignKey: 'id_bloque_jornada',
+  as: 'bloque_jornada',
+});
+
+JourneyBlock.hasMany(EducationalSchedule, {
+  foreignKey: 'id_bloque_jornada',
   as: 'horarios',
 });
 
@@ -242,6 +301,16 @@ Group.hasMany(ApprenticeGroup, {
   as: 'aprendiz_grupos',
 });
 
+ApprenticeGroup.belongsTo(User, {
+  foreignKey: 'asignado_por',
+  as: 'usuario_asignador',
+});
+
+User.hasMany(ApprenticeGroup, {
+  foreignKey: 'asignado_por',
+  as: 'aprendiz_grupos_asignados',
+});
+
 // =========================
 // Relación instructor-grupo
 // =========================
@@ -265,6 +334,16 @@ Group.hasMany(InstructorGroup, {
   as: 'instructor_grupos',
 });
 
+InstructorGroup.belongsTo(User, {
+  foreignKey: 'asignado_por',
+  as: 'usuario_asignador',
+});
+
+User.hasMany(InstructorGroup, {
+  foreignKey: 'asignado_por',
+  as: 'instructor_grupos_asignados',
+});
+
 // =========================
 // Sesiones de formación
 // =========================
@@ -275,6 +354,36 @@ EducationalSession.belongsTo(EducationalSchedule, {
 
 EducationalSchedule.hasMany(EducationalSession, {
   foreignKey: 'id_horario',
+  as: 'sesiones',
+});
+
+EducationalSession.belongsTo(GroupTrimester, {
+  foreignKey: 'id_grupo_trimestre',
+  as: 'grupo_trimestre',
+});
+
+GroupTrimester.hasMany(EducationalSession, {
+  foreignKey: 'id_grupo_trimestre',
+  as: 'sesiones',
+});
+
+EducationalSession.belongsTo(ClassCompetency, {
+  foreignKey: 'id_clase_competencia',
+  as: 'competencia',
+});
+
+ClassCompetency.hasMany(EducationalSession, {
+  foreignKey: 'id_clase_competencia',
+  as: 'sesiones',
+});
+
+EducationalSession.belongsTo(JourneyBlock, {
+  foreignKey: 'id_bloque_jornada',
+  as: 'bloque_jornada',
+});
+
+JourneyBlock.hasMany(EducationalSession, {
+  foreignKey: 'id_bloque_jornada',
   as: 'sesiones',
 });
 
@@ -328,9 +437,39 @@ EnvironmentAccess.hasMany(EducationalSession, {
   as: 'sesiones_cerradas',
 });
 
+EducationalSession.belongsTo(User, {
+  foreignKey: 'abierta_por',
+  as: 'usuario_apertura',
+});
+
+User.hasMany(EducationalSession, {
+  foreignKey: 'abierta_por',
+  as: 'sesiones_abiertas_por_usuario',
+});
+
+EducationalSession.belongsTo(User, {
+  foreignKey: 'cerrada_por',
+  as: 'usuario_cierre',
+});
+
+User.hasMany(EducationalSession, {
+  foreignKey: 'cerrada_por',
+  as: 'sesiones_cerradas_por_usuario',
+});
+
 // =========================
 // Asistencias
 // =========================
+Attendance.belongsTo(EducationalSession, {
+  foreignKey: 'id_sesion_formacion',
+  as: 'sesion',
+});
+
+EducationalSession.hasMany(Attendance, {
+  foreignKey: 'id_sesion_formacion',
+  as: 'asistencias',
+});
+
 Attendance.belongsTo(Apprentice, {
   foreignKey: 'id_aprendiz',
   as: 'aprendiz',
@@ -351,30 +490,47 @@ EnvironmentAccess.hasMany(Attendance, {
   as: 'asistencias',
 });
 
-Attendance.belongsTo(Group, {
-  foreignKey: 'id_grupo',
-  as: 'grupo',
+// La relacion directa por id_sesion_formacion es la relacion oficial.
+
+AttendanceEvidence.belongsTo(Attendance, {
+  foreignKey: 'id_asistencia',
+  as: 'asistencia',
 });
 
-Group.hasMany(Attendance, {
-  foreignKey: 'id_grupo',
-  as: 'asistencias',
+Attendance.hasMany(AttendanceEvidence, {
+  foreignKey: 'id_asistencia',
+  as: 'evidencias',
 });
 
-Attendance.belongsTo(EducationalSchedule, {
-  foreignKey: 'id_horario',
-  as: 'horario',
+AttendanceEvidence.belongsTo(User, {
+  foreignKey: 'id_usuario_registra',
+  as: 'usuario_registra',
 });
 
-EducationalSchedule.hasMany(Attendance, {
-  foreignKey: 'id_horario',
-  as: 'asistencias',
+User.hasMany(AttendanceEvidence, {
+  foreignKey: 'id_usuario_registra',
+  as: 'evidencias_asistencia_registradas',
 });
 
-// Nota:
-// NO se modela aquí la relación compuesta
-// (id_horario, fecha_clase) -> sesiones_formacion
-// porque Sequelize no la maneja bien.
+AttendanceEvidence.belongsTo(IoTDevice, {
+  foreignKey: 'id_dispositivo',
+  as: 'dispositivo',
+});
+
+IoTDevice.hasMany(AttendanceEvidence, {
+  foreignKey: 'id_dispositivo',
+  as: 'evidencias_asistencia',
+});
+
+AttendanceEvidence.belongsTo(EnvironmentAccess, {
+  foreignKey: 'id_acceso',
+  as: 'acceso',
+});
+
+EnvironmentAccess.hasMany(AttendanceEvidence, {
+  foreignKey: 'id_acceso',
+  as: 'evidencias_asistencia',
+});
 
 // =========================
 // Observaciones
@@ -462,6 +618,16 @@ User.hasMany(Alert, {
   as: 'alertas_creadas',
 });
 
+Alert.belongsTo(User, {
+  foreignKey: 'reabierta_por',
+  as: 'usuario_reapertura',
+});
+
+User.hasMany(Alert, {
+  foreignKey: 'reabierta_por',
+  as: 'alertas_reabiertas',
+});
+
 AlertObservation.belongsTo(Alert, {
   foreignKey: 'id_alerta',
   as: 'alerta',
@@ -500,9 +666,9 @@ AttendanceJustification.belongsTo(Attendance, {
   as: 'asistencia',
 });
 
-Attendance.hasOne(AttendanceJustification, {
+Attendance.hasMany(AttendanceJustification, {
   foreignKey: 'id_asistencia',
-  as: 'justificacion',
+  as: 'justificaciones',
 });
 
 AttendanceJustification.belongsTo(Apprentice, {
@@ -593,9 +759,13 @@ module.exports = {
   Apprentice,
   EducationalArea,
   FormativeProgram,
+  ClassCompetency,
+  ProgramClassCompetency,
   CoordinatorArea,
   Environment,
   Group,
+  GroupTrimester,
+  JourneyBlock,
   EducationalSchedule,
   EducationalSession,
   IoTDevice,
@@ -603,6 +773,7 @@ module.exports = {
   ApprenticeGroup,
   InstructorGroup,
   Attendance,
+  AttendanceEvidence,
   Observation,
   Alert,
   AlertObservation,

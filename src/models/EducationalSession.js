@@ -13,6 +13,18 @@ const EducationalSession = sequelize.define(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
+    id_grupo_trimestre: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
+    id_clase_competencia: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
+    id_bloque_jornada: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
     id_grupo: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
@@ -61,6 +73,42 @@ const EducationalSession = sequelize.define(
     },
     id_acceso_cierre: {
       type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    qr_token_hash: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    qr_expira_en: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    fecha_apertura: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    fecha_cierre: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    abierta_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    cerrada_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    cancelada_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    fecha_cancelacion: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    motivo_cancelacion: {
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
   },

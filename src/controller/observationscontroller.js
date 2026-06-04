@@ -28,6 +28,15 @@ const getObservationsByApprentice = async (req, res) => {
   }
 };
 
+const getMyObservations = async (req, res) => {
+  try {
+    const result = await ObservationService.getMyObservations(req.query, req.user);
+    return successResponse(res, 'Mis observaciones obtenidas correctamente', result);
+  } catch (error) {
+    return errorResponse(res, error.message || 'Error al obtener mis observaciones', error.status || 500);
+  }
+};
+
 const getObservationById = async (req, res) => {
   try {
     const result = await ObservationService.getById(req.params.id, req.user);
@@ -57,6 +66,7 @@ module.exports = {
   createObservation,
   getObservationsByGroup,
   getObservationsByApprentice,
+  getMyObservations,
   getObservationById,
   updateObservation,
 };

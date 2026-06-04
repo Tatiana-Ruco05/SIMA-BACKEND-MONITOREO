@@ -39,9 +39,9 @@ const Group = sequelize.define(
       allowNull: true,
     },
     estado: {
-      type: DataTypes.ENUM('ACTIVO', 'CERRADO', 'SUSPENDIDO'),
+      type: DataTypes.ENUM('EN_FORMACION', 'PRACTICAS', 'FINALIZADO'),
       allowNull: false,
-      defaultValue: 'ACTIVO',
+      defaultValue: 'EN_FORMACION',
     },
     trimestres: {
       type: DataTypes.INTEGER,

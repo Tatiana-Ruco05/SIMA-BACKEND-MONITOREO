@@ -8,6 +8,7 @@ const {
   Group,
   ApprenticeGroup,
   InstructorGroup,
+  Alert,
   sequelize,
 } = require('../models');
 const { hashPassword } = require('../helpers/bcrypt');
@@ -62,7 +63,7 @@ class UserService {
 
     const { count, rows } = await User.findAndCountAll({
       where: whereUser,
-      attributes: ['id_usuario', 'email', 'estado', 'created_at'],
+      attributes: ['id_usuario', 'email', 'estado', 'debe_cambiar_password', 'created_at'],
       include: [
         {
           model: Role,
@@ -94,7 +95,7 @@ class UserService {
    */
   static async getUserById(id, requester) {
     const targetUser = await User.findByPk(id, {
-      attributes: ['id_usuario', 'email', 'estado', 'created_at'],
+      attributes: ['id_usuario', 'email', 'estado', 'debe_cambiar_password', 'created_at'],
       include: [
         { model: Role, as: 'rol', attributes: ['id_rol', 'nombre'] },
         { model: Person, as: 'persona', attributes: ['id_persona', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'telefono'] },
@@ -215,8 +216,8 @@ class UserService {
 
         selectedGroup = await Group.findByPk(id_grupo, { transaction });
         if (!selectedGroup) throw { status: 404, message: 'Ficha formativa no encontrada' };
-        if (selectedGroup.estado !== 'ACTIVO') {
-          throw { status: 400, message: 'El aprendiz solo puede vincularse a una ficha activa' };
+        if (selectedGroup.estado !== 'EN_FORMACION') {
+          throw { status: 400, message: 'El aprendiz solo puede vincularse a una ficha en formacion' };
         }
 
         if (requester) {
@@ -231,7 +232,13 @@ class UserService {
       const plainPassword = password && String(password).trim() !== '' ? String(password) : String(numero_documento);
       const hashedPassword = await hashPassword(plainPassword);
 
-      const user = await User.create({ email, password: hashedPassword, id_rol, estado: 'ACTIVO' }, { transaction });
+      const user = await User.create({
+        email,
+        password: hashedPassword,
+        id_rol,
+        estado: 'ACTIVO',
+        debe_cambiar_password: role.nombre === 'aprendiz',
+      }, { transaction });
 
       await Person.create({
         id_usuario: user.id_usuario,
@@ -264,7 +271,7 @@ class UserService {
       await transaction.commit();
 
       return User.findByPk(user.id_usuario, {
-        attributes: ['id_usuario', 'email', 'estado', 'created_at'],
+        attributes: ['id_usuario', 'email', 'estado', 'debe_cambiar_password', 'created_at'],
         include: [
           { model: Role, as: 'rol', attributes: ['id_rol', 'nombre'] },
           { model: Person, as: 'persona', attributes: ['id_persona', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'telefono'] },
@@ -335,10 +342,8 @@ class UserService {
 
       const isCoordinator = requester.rol === 'coordinador';
       const isSelfUpdate = Number(requester.id_usuario) === Number(id);
-      const isInstructorUpdatingAccessibleApprentice = !isCoordinator && !isSelfUpdate
-        && await this._instructorCanAccessApprentice(requester, user.aprendiz?.id_aprendiz, transaction);
 
-      if (!isCoordinator && !isSelfUpdate && !isInstructorUpdatingAccessibleApprentice) {
+      if (!isCoordinator && !isSelfUpdate) {
         throw { status: 403, message: 'No tienes permisos para modificar los datos de otro usuario' };
       }
 
@@ -350,17 +355,14 @@ class UserService {
       const userUpdateData = {};
       const personUpdateData = {};
 
-      if (isCoordinator || isInstructorUpdatingAccessibleApprentice) {
-        if (isInstructorUpdatingAccessibleApprentice && (data.id_rol !== undefined || data.estado !== undefined || data.password !== undefined)) {
-          throw { status: 403, message: 'No tienes permisos para modificar rol, estado o contrasena del aprendiz' };
-        }
-
+      if (isCoordinator) {
         if (data.email !== undefined) userUpdateData.email = data.email;
         if (isCoordinator && data.id_rol !== undefined) userUpdateData.id_rol = data.id_rol;
         if (isCoordinator && data.estado !== undefined) userUpdateData.estado = data.estado;
 
         if (isCoordinator && data.password && String(data.password).trim() !== '') {
           userUpdateData.password = await hashPassword(String(data.password));
+          userUpdateData.debe_cambiar_password = false;
         }
 
         if (user.persona) {
@@ -385,6 +387,7 @@ class UserService {
         if (data.email !== undefined) userUpdateData.email = data.email;
         if (data.password && String(data.password).trim() !== '') {
           userUpdateData.password = await hashPassword(String(data.password));
+          userUpdateData.debe_cambiar_password = false;
         }
         if (user.persona && data.telefono !== undefined) {
           personUpdateData.telefono = data.telefono;
@@ -407,7 +410,7 @@ class UserService {
       await transaction.commit();
 
       return User.findByPk(id, {
-        attributes: ['id_usuario', 'email', 'estado', 'created_at'],
+        attributes: ['id_usuario', 'email', 'estado', 'debe_cambiar_password', 'created_at'],
         include: [
           { model: Role, as: 'rol', attributes: ['id_rol', 'nombre'] },
           { model: Person, as: 'persona', attributes: ['id_persona', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'telefono'] },
@@ -422,12 +425,62 @@ class UserService {
   /**
    * Elimina/Deshabilita usuario
    */
-  static async deleteUser(id) {
-    const user = await User.findByPk(id);
-    if (!user) throw { status: 404, message: 'Usuario no encontrado' };
+  static async deleteUser(id, requester) {
+    const transaction = await sequelize.transaction();
 
-    await user.update({ estado: 'INACTIVO' });
-    return { id_usuario: user.id_usuario, estado: 'INACTIVO' };
+    try {
+      const user = await User.findByPk(id, {
+        include: [{ model: Apprentice, as: 'aprendiz', required: false }],
+        transaction,
+      });
+      if (!user) throw { status: 404, message: 'Usuario no encontrado' };
+
+      if (user.aprendiz && requester?.rol === 'coordinador') {
+        const activeLinks = await ApprenticeGroup.findAll({
+          where: { id_aprendiz: user.aprendiz.id_aprendiz, estado: 'ACTIVO' },
+          attributes: ['id_grupo'],
+          transaction,
+        });
+
+        if (!activeLinks.length) {
+          throw { status: 403, message: 'El aprendiz no tiene vinculos activos en grupos gestionables' };
+        }
+
+        await Promise.all(activeLinks.map((link) => assertRequesterCanAccessGroup(
+          requester,
+          link.id_grupo,
+          'No tienes permisos para desactivar este aprendiz'
+        )));
+      }
+
+      await user.update({ estado: 'INACTIVO' }, { transaction });
+
+      if (user.aprendiz) {
+        await user.aprendiz.update({ estado: 'INACTIVO' }, { transaction });
+        await Alert.update(
+          {
+            estado: 'CERRADA',
+            justificacion_cierre: 'Cierre automatico por desactivacion del aprendiz.',
+            fecha_cierre: new Date(),
+            cerrada_por: requester?.id_usuario || null,
+          },
+          {
+            where: { id_aprendiz: user.aprendiz.id_aprendiz, estado: 'ABIERTA' },
+            transaction,
+          }
+        );
+      }
+
+      await transaction.commit();
+      return {
+        id_usuario: user.id_usuario,
+        estado: 'INACTIVO',
+        aprendiz: user.aprendiz ? { id_aprendiz: user.aprendiz.id_aprendiz, estado: 'INACTIVO' } : null,
+      };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   /**

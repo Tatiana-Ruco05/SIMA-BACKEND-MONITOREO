@@ -9,15 +9,19 @@ const EducationalSchedule = sequelize.define(
       primaryKey: true,
       autoIncrement: true,
     },
-    id_grupo: {
+    id_grupo_trimestre: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
-    id_instructor: {
+    id_clase_competencia: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
-    id_ambiente: {
+    id_instructor_grupo: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
+    id_bloque_jornada: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
@@ -43,14 +47,6 @@ const EducationalSchedule = sequelize.define(
       type: DataTypes.ENUM('ACTIVO', 'INACTIVO'),
       allowNull: false,
       defaultValue: 'ACTIVO',
-    },
-    trimestre: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-    horarios_formacioncol: {
-      type: DataTypes.STRING(45),
-      allowNull: true,
     },
   },
   {

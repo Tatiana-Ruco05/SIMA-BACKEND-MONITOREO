@@ -22,10 +22,30 @@ const InstructorGroup = sequelize.define(
       allowNull: false,
       defaultValue: 'ACTIVO',
     },
+    fecha_inicio: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    fecha_fin: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    asignado_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
   },
   {
     tableName: 'instructor_grupo',
     timestamps: false,
+    indexes: [
+      {
+        unique: true,
+        fields: ['id_instructor', 'id_grupo'],
+        name: 'uk_instructor_grupo_unico',
+      },
+    ],
   }
 );
 

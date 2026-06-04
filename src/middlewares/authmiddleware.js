@@ -23,7 +23,7 @@ const authMiddleware = async (req, res, next) => {
     }
 
     const user = await User.findByPk(decoded.id_usuario, {
-      attributes: ['id_usuario', 'email', 'estado', 'id_rol'],
+      attributes: ['id_usuario', 'email', 'estado', 'id_rol', 'debe_cambiar_password'],
       include: [
         { model: Role, as: 'rol', attributes: ['id_rol', 'nombre', 'descripcion'] },
         { model: Instructor, as: 'instructor', required: false, attributes: ['id_instructor', 'estado'] },
@@ -65,6 +65,7 @@ const authMiddleware = async (req, res, next) => {
       id_usuario: user.id_usuario,
       email: user.email,
       estado: user.estado,
+      debe_cambiar_password: Boolean(user.debe_cambiar_password),
       id_rol: user.id_rol,
       rol: roleName,
       rol_detalle: user.rol,

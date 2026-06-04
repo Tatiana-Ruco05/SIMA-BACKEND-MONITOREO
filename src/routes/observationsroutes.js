@@ -9,6 +9,7 @@ const { validateRequest } = require('../middlewares/validatemiddleware');
 const {
   createObservation,
   getObservationById,
+  getMyObservations,
   getObservationsByApprentice,
   getObservationsByGroup,
   updateObservation,
@@ -81,6 +82,15 @@ router.get(
   queryFiltersValidations,
   validateRequest,
   getObservationsByApprentice
+);
+
+router.get(
+  '/my',
+  authMiddleware,
+  requireRole('aprendiz'),
+  queryFiltersValidations,
+  validateRequest,
+  getMyObservations
 );
 
 router.get(

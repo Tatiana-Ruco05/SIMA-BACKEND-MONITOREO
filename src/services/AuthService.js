@@ -56,6 +56,7 @@ class AuthService {
       id_instructor,
       id_aprendiz,
       estado: user.estado,
+      debe_cambiar_password: Boolean(user.debe_cambiar_password),
     };
 
     const token = jwt.sign(payload, env.JWT_SECRET, { expiresIn: '8h' });
@@ -66,8 +67,11 @@ class AuthService {
         id_usuario: user.id_usuario,
         email: user.email,
         estado: user.estado,
+        debe_cambiar_password: Boolean(user.debe_cambiar_password),
         id_rol: user.id_rol,
         rol: roleName,
+        id_instructor,
+        id_aprendiz,
         rol_detalle: user.rol || null,
         persona: user.persona || null,
       },
@@ -79,6 +83,8 @@ class AuthService {
       include: [
         { model: Role, as: 'rol', attributes: ['id_rol', 'nombre', 'descripcion'] },
         { model: Person, as: 'persona', attributes: ['id_persona', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'telefono'] },
+        { model: Instructor, as: 'instructor', required: false, attributes: ['id_instructor', 'estado'] },
+        { model: Apprentice, as: 'aprendiz', required: false, attributes: ['id_aprendiz', 'estado'] },
       ],
     });
 
@@ -88,8 +94,11 @@ class AuthService {
       id_usuario: user.id_usuario,
       email: user.email,
       estado: user.estado,
+      debe_cambiar_password: Boolean(user.debe_cambiar_password),
       id_rol: user.id_rol,
       rol: user.rol?.nombre || null,
+      id_instructor: user.instructor?.estado === 'ACTIVO' ? user.instructor.id_instructor : null,
+      id_aprendiz: user.aprendiz?.estado === 'ACTIVO' ? user.aprendiz.id_aprendiz : null,
       rol_detalle: user.rol || null,
       persona: user.persona || null,
     };

@@ -30,7 +30,7 @@ router.get(
 router.get(
   '/instructores-disponibles',
   authMiddleware,
-  requireRole('coordinador'),
+  requireRole('coordinador', 'instructor'),
   getAvailableInstructors
 );
 
@@ -92,6 +92,12 @@ router.patch(
   '/:id/estado',
   authMiddleware,
   requireRole('coordinador'),
+  [
+    body('estado')
+      .isIn(['EN_FORMACION', 'PRACTICAS', 'FINALIZADO'])
+      .withMessage('El estado debe ser EN_FORMACION, PRACTICAS o FINALIZADO')
+  ],
+  validateRequest,
   changeGroupStatus
 );
 

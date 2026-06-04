@@ -6,6 +6,7 @@ const {
   FormativeProgram,
   Group,
   ApprenticeGroup,
+  InstructorGroup,
   Apprentice,
   Alert,
   Observation,
@@ -71,7 +72,7 @@ const getCoordinatorSummary = async (req, res) => {
     const totalProgramsResult = await Group.count({
       distinct: true,
       col: 'id_programa',
-      where: { estado: 'ACTIVO' },
+      where: { estado: 'EN_FORMACION' },
       include: [
         {
           model: FormativeProgram,
@@ -86,7 +87,7 @@ const getCoordinatorSummary = async (req, res) => {
     });
 
     const totalActiveGroups = await Group.count({
-      where: { estado: 'ACTIVO' },
+      where: { estado: 'EN_FORMACION' },
       include: [
         {
           model: FormativeProgram,
@@ -154,7 +155,7 @@ const getCoordinatorSummary = async (req, res) => {
           },
         ],
         where: {
-          estado: 'ACTIVA',
+          estado: 'ABIERTA',
         },
       });
 
@@ -345,7 +346,88 @@ const getAreaDetail = async (req, res) => {
   }
 };
 
+const getInstructorSummary = async (req, res) => {
+  try {
+    const idInstructor = req.user.id_instructor;
+
+    if (!idInstructor) {
+      return errorResponse(res, 'El usuario no tiene perfil activo de instructor', 403);
+    }
+
+    const ledGroups = await Group.findAll({
+      where: { id_instructor_lider: idInstructor },
+      attributes: ['id_grupo', 'numero_ficha', 'jornada', 'estado', 'fecha_inicio', 'fecha_fin'],
+      include: [
+        {
+          model: FormativeProgram,
+          as: 'programa_formacion',
+          attributes: ['id_programa', 'nombre_programa'],
+          include: [{ model: EducationalArea, as: 'area', attributes: ['id_area', 'nombre_area'] }],
+        },
+      ],
+      order: [['numero_ficha', 'ASC']],
+    });
+
+    const assignedLinks = await InstructorGroup.findAll({
+      where: { id_instructor: idInstructor, estado: 'ACTIVO' },
+      attributes: ['id_grupo'],
+    });
+
+    const assignedGroupIds = assignedLinks.map((item) => Number(item.id_grupo));
+    const ledGroupIds = ledGroups.map((item) => Number(item.id_grupo));
+    const allGroupIds = [...new Set([...ledGroupIds, ...assignedGroupIds])];
+
+    const assignedGroups = assignedGroupIds.length
+      ? await Group.findAll({
+          where: { id_grupo: { [Op.in]: assignedGroupIds } },
+          attributes: ['id_grupo', 'numero_ficha', 'jornada', 'estado', 'fecha_inicio', 'fecha_fin', 'id_instructor_lider'],
+          include: [
+            {
+              model: FormativeProgram,
+              as: 'programa_formacion',
+              attributes: ['id_programa', 'nombre_programa'],
+              include: [{ model: EducationalArea, as: 'area', attributes: ['id_area', 'nombre_area'] }],
+            },
+          ],
+          order: [['numero_ficha', 'ASC']],
+        })
+      : [];
+
+    const totalApprentices = allGroupIds.length
+      ? await ApprenticeGroup.count({
+          where: { id_grupo: { [Op.in]: allGroupIds }, estado: 'ACTIVO' },
+          distinct: true,
+          col: 'id_aprendiz',
+        })
+      : 0;
+
+    const totalAlerts = allGroupIds.length
+      ? await Alert.count({ where: { id_grupo: { [Op.in]: allGroupIds }, estado: 'ABIERTA' } })
+      : 0;
+
+    const totalOpenObservations = allGroupIds.length
+      ? await Observation.count({ where: { id_grupo: { [Op.in]: allGroupIds }, estado: 'ABIERTA' } })
+      : 0;
+
+    return successResponse(res, 'Resumen del instructor obtenido correctamente', {
+      kpis: {
+        total_grupos_liderados: ledGroupIds.length,
+        total_grupos_asignados: assignedGroupIds.length,
+        total_grupos_visibles: allGroupIds.length,
+        total_aprendices_activos: totalApprentices,
+        total_alertas_activas: totalAlerts,
+        total_observaciones_abiertas: totalOpenObservations,
+      },
+      grupos_liderados: ledGroups,
+      grupos_asignados: assignedGroups,
+    });
+  } catch (error) {
+    return errorResponse(res, 'Error al obtener resumen del instructor', 500, error.message);
+  }
+};
+
 module.exports = {
   getCoordinatorSummary,
   getAreaDetail,
+  getInstructorSummary,
 };

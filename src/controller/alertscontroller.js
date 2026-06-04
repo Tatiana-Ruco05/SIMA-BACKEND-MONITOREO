@@ -71,8 +71,14 @@ const getAlertObservationsController = async (req, res) => {
 const updateAlertStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { estado, justificacion_cierre } = req.body;
-    const alert = await AlertService.updateAlertStatus(id, estado, req.user, justificacion_cierre);
+    const { estado, justificacion_cierre, justificacion_reapertura } = req.body;
+    const alert = await AlertService.updateAlertStatus(
+      id,
+      estado,
+      req.user,
+      justificacion_cierre,
+      justificacion_reapertura
+    );
     return successResponse(res, 'Estado de alerta actualizado correctamente', alert);
   } catch (error) {
     return errorResponse(res, error.message || 'Error al actualizar el estado de la alerta', error.status || 500);

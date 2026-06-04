@@ -12,7 +12,6 @@ const AttendanceJustification = sequelize.define(
     id_asistencia: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
-      unique: true,
     },
     id_aprendiz: {
       type: DataTypes.BIGINT.UNSIGNED,
@@ -54,5 +53,26 @@ const AttendanceJustification = sequelize.define(
     timestamps: false,
   }
 );
+
+// Hooks para integracion automatica del motor de alertas
+AttendanceJustification.addHook('afterCreate', async (justification, options) => {
+  try {
+    const AlertService = require('../services/AlertService');
+    await AlertService.evaluateInattendanceAlert(justification.id_aprendiz);
+  } catch (err) {
+    console.error('Error al evaluar alerta de inasistencia tras creacion de justificacion:', err);
+  }
+});
+
+AttendanceJustification.addHook('afterUpdate', async (justification, options) => {
+  if (justification.changed('estado')) {
+    try {
+      const AlertService = require('../services/AlertService');
+      await AlertService.evaluateInattendanceAlert(justification.id_aprendiz);
+    } catch (err) {
+      console.error('Error al evaluar alerta de inasistencia tras actualizacion de justificacion:', err);
+    }
+  }
+});
 
 module.exports = AttendanceJustification;
