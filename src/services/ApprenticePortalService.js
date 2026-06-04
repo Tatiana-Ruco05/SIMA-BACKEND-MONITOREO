@@ -471,21 +471,23 @@ class ApprenticePortalService {
     if (filters.tipo) where.tipo_alerta = filters.tipo;
     if (filters.estado) where.estado = filters.estado;
 
-    const userInclude = {
+    const buildUserInclude = (as) => ({
       model: User,
+      as,
+      required: false,
       attributes: ['id_usuario'],
       include: [
         { model: Person, as: 'persona' },
         { model: Role, as: 'rol', attributes: ['nombre'] },
       ],
-    };
+    });
 
     const alerts = await Alert.findAll({
       where,
       include: [
-        { ...userInclude, as: 'usuario_creador', required: false },
-        { ...userInclude, as: 'usuario_cierre', required: false },
-        { ...userInclude, as: 'usuario_reapertura', required: false },
+        buildUserInclude('usuario_creador'),
+        buildUserInclude('usuario_cierre'),
+        buildUserInclude('usuario_reapertura'),
       ],
       order: [['fecha_alerta', 'DESC']],
     });

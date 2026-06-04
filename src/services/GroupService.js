@@ -32,6 +32,36 @@ class GroupService {
     return date.toISOString().split('T')[0];
   }
 
+  static _addMonthsDateOnly(dateValue, months) {
+    const date = new Date(`${String(dateValue).split('T')[0]}T00:00:00`);
+    date.setMonth(date.getMonth() + months);
+    return date.toISOString().split('T')[0];
+  }
+
+  static _buildTrimesterRows(id_grupo, fecha_inicio, trimestres) {
+    const totalTrimesters = Number.parseInt(trimestres, 10);
+    if (!Number.isInteger(totalTrimesters) || totalTrimesters < 1) {
+      throw { status: 400, message: 'La cantidad de trimestres debe ser un entero positivo' };
+    }
+
+    return Array.from({ length: totalTrimesters }, (_, index) => {
+      const numero_trimestre = index + 1;
+      return {
+        id_grupo,
+        numero_trimestre,
+        fecha_inicio: this._addMonthsDateOnly(fecha_inicio, index * 3),
+        fecha_fin: this._addMonthsDateOnly(fecha_inicio, numero_trimestre * 3),
+        estado: numero_trimestre === 1 ? 'ACTIVO' : 'PROGRAMADO',
+      };
+    });
+  }
+
+  static async _createInitialTrimesters(id_grupo, fecha_inicio, trimestres, transaction) {
+    const rows = this._buildTrimesterRows(id_grupo, fecha_inicio, trimestres);
+    await GroupTrimester.bulkCreate(rows, { transaction });
+    return rows;
+  }
+
   static _todayDateOnly() {
     return new Date().toISOString().split('T')[0];
   }
@@ -321,6 +351,13 @@ class GroupService {
         id_instructor_lider: id_instructor_lider || null,
         estado: 'EN_FORMACION',
       }, { transaction });
+
+      await this._createInitialTrimesters(
+        newGroup.id_grupo,
+        fecha_inicio,
+        trimestres,
+        transaction
+      );
 
       if (id_instructor_lider) {
         await this._ensureInstructorGroupAssignment(

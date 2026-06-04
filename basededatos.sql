@@ -1249,7 +1249,12 @@ INSERT INTO `grupos_formativos` (`numero_ficha`, `id_programa`, `jornada`, `fech
 
 -- 7.0. TRIMESTRES DEL GRUPO
 INSERT INTO `grupo_trimestre` (`id_grupo`, `numero_trimestre`, `fecha_inicio`, `fecha_fin`, `estado`) VALUES
-(1, 5, '2026-01-20', '2026-04-20', 'ACTIVO');
+(1, 1, '2025-01-20', '2025-04-20', 'COMPLETADO'),
+(1, 2, '2025-04-20', '2025-07-20', 'COMPLETADO'),
+(1, 3, '2025-07-20', '2025-10-20', 'COMPLETADO'),
+(1, 4, '2025-10-20', '2026-01-20', 'COMPLETADO'),
+(1, 5, '2026-01-20', '2026-04-20', 'ACTIVO'),
+(1, 6, '2026-04-20', '2026-07-20', 'PROGRAMADO');
 
 -- 7.1. INSTRUCTOR_GRUPO
 INSERT INTO `instructor_grupo` (`id_instructor`, `id_grupo`, `estado`, `fecha_inicio`, `asignado_por`) VALUES
