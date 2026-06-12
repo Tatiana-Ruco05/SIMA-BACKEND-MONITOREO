@@ -91,6 +91,40 @@ Modo normal:
 npm start
 ```
 
+## Despliegue en Render
+
+El repositorio incluye `render.yaml` y un endpoint de salud en:
+
+- `GET /health`
+
+Variables obligatorias en produccion:
+
+- `NODE_ENV=production`
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+- `JWT_SECRET`
+- `CORS_ORIGIN`
+
+Variables opcionales:
+
+- `DB_SSL=true` si el proveedor MySQL exige TLS.
+- `DB_SSL_REJECT_UNAUTHORIZED=false` solo si el proveedor usa un certificado no verificable.
+- `UPLOAD_DIR=/var/data/uploads` al conectar un disco persistente.
+
+Render proporciona `PORT` automaticamente. No se debe copiar el archivo `.env`
+al servicio ni almacenar secretos en el repositorio.
+
+Limitaciones del plan gratuito:
+
+- El servicio puede suspenderse por inactividad, por lo que el planificador en
+  memoria no ejecutara tareas mientras la instancia este suspendida.
+- Los archivos guardados en `UPLOAD_DIR` son temporales y se pierden tras
+  reinicios o despliegues. Los soportes permanentes requieren almacenamiento
+  externo o un disco persistente en un plan compatible.
+
 ## Autenticacion
 
 Las rutas protegidas requieren:

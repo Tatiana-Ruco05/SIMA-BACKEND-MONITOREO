@@ -4,6 +4,8 @@ const helmet = require('helmet');
 const env = require('./config/env');
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
 const authRoutes = require('./routes/authroutes');
 const usersRoutes = require('./routes/usersroutes');
 const rolesRoutes = require('./routes/rolesroutes');
@@ -44,12 +46,21 @@ const path = require('path');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIR)));
 
 app.get('/', (req, res) => {
   res.json({
     ok: true,
     message: 'API de control de acceso por roles funcionando',
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: 'sima-backend-monitoreo',
+    environment: env.NODE_ENV,
+    uptime_seconds: Math.floor(process.uptime()),
   });
 });
 
