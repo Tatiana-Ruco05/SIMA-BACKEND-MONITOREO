@@ -1233,10 +1233,12 @@ INSERT INTO `ambientes` (`nombre_ambiente`, `ubicacion`, `capacidad`, `estado`) 
 
 -- 5.1. BLOQUES POR JORNADA
 INSERT INTO `bloques_jornada` (`jornada`, `nombre_bloque`, `orden`, `hora_inicio`, `hora_fin`, `estado`) VALUES
-('MANANA', 'Bloque manana 1', 1, '07:00:00', '09:30:00', 'ACTIVO'),
-('MANANA', 'Bloque manana 2', 2, '10:00:00', '12:30:00', 'ACTIVO'),
+('MAÑANA', 'Bloque mañana 1', 1, '07:00:00', '09:30:00', 'ACTIVO'),
+('MAÑANA', 'Bloque mañana 2', 2, '10:00:00', '12:30:00', 'ACTIVO'),
+('MAÑANA', 'Bloque mañana 3', 3, '07:00:00', '13:30:00', 'ACTIVO'),
 ('TARDE', 'Bloque tarde 1', 1, '14:00:00', '16:30:00', 'ACTIVO'),
 ('TARDE', 'Bloque tarde 2', 2, '17:00:00', '19:00:00', 'ACTIVO'),
+('TARDE', 'Bloque tarde 3', 3, '14:00:00', '19:30:00', 'ACTIVO'),
 ('NOCHE', 'Bloque noche 1', 1, '20:00:00', '22:00:00', 'ACTIVO');
 
 -- 6. INSTRUCTORES
