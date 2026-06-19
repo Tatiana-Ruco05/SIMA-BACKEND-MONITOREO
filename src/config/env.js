@@ -4,11 +4,6 @@ const isRailway = Boolean(
   process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_SERVICE_ID
 );
 const isProduction = process.env.NODE_ENV === 'production' || isRailway;
-const jwtSecret = process.env.JWT_SECRET || (isProduction ? null : 'clave_desarrollo_sima');
-
-if (!jwtSecret) {
-  throw new Error('JWT_SECRET es obligatorio en produccion');
-}
 
 const parseBoolean = (value, defaultValue = false) => {
   if (value === undefined) return defaultValue;
@@ -55,7 +50,15 @@ const databaseVariables = {
   password: firstDefined('DB_PASSWORD', 'MYSQLPASSWORD') || databaseUrl.password,
 };
 
+const jwtSecret = firstDefined('JWT_SECRET') || (isProduction ? null : 'clave_desarrollo_sima');
+
 if (isProduction) {
+  const missingVariables = [];
+
+  if (!jwtSecret) {
+    missingVariables.push('JWT_SECRET');
+  }
+
   const missingDatabaseVariables = [
     ['DB_HOST', 'MYSQLHOST', databaseVariables.host],
     ['DB_NAME', 'MYSQLDATABASE', databaseVariables.name],
@@ -65,9 +68,11 @@ if (isProduction) {
     .filter(([, , value]) => !value)
     .map(([dbKey, mysqlKey]) => `${dbKey}, ${mysqlKey}, DATABASE_URL o MYSQL_URL`);
 
-  if (missingDatabaseVariables.length > 0) {
+  missingVariables.push(...missingDatabaseVariables);
+
+  if (missingVariables.length > 0) {
     throw new Error(
-      `Variables de entorno obligatorias faltantes: ${missingDatabaseVariables.join(', ')}`
+      `Configuracion de produccion incompleta. Faltan: ${missingVariables.join('; ')}`
     );
   }
 }
