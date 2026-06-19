@@ -33,12 +33,50 @@ const notificationsRoutes = require('./routes/notificationsroutes');
 const errorMiddleware = require('./middlewares/errormiddleware');
 
 app.use(helmet());
-const corsOrigins = env.CORS_ORIGIN === '*'
-  ? '*'
-  : env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean);
+const normalizeOrigin = (origin) => origin.replace(/\/$/, '');
+const configuredCorsOrigins = env.CORS_ORIGIN === '*'
+  ? ['*']
+  : env.CORS_ORIGIN
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .map(normalizeOrigin);
+
+const defaultAllowedOrigins = [
+  'https://sima-theta.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+];
+
+const allowedCorsOrigins = new Set([
+  ...configuredCorsOrigins,
+  ...defaultAllowedOrigins,
+]);
+
+const isAllowedVercelPreview = (origin) => {
+  try {
+    const { hostname, protocol } = new URL(origin);
+    return protocol === 'https:' && hostname.endsWith('.vercel.app');
+  } catch {
+    return false;
+  }
+};
 
 app.use(cors({
-  origin: corsOrigins,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (
+      allowedCorsOrigins.has('*') ||
+      allowedCorsOrigins.has(normalizedOrigin) ||
+      isAllowedVercelPreview(normalizedOrigin)
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origen no permitido por CORS: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
