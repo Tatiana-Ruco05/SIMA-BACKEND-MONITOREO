@@ -11,6 +11,19 @@ const sequelize = new Sequelize(
     dialect: 'mysql',
     logging: false,
     timezone: '-05:00',
+    pool: {
+      max: 10,
+      min: 0,
+      acquire: 30000,
+      idle: 10000,
+    },
+    dialectOptions: env.DB_SSL
+      ? {
+          ssl: {
+            rejectUnauthorized: env.DB_SSL_REJECT_UNAUTHORIZED,
+          },
+        }
+      : {},
   }
 );
 

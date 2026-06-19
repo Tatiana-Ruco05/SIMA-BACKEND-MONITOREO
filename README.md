@@ -91,6 +91,39 @@ Modo normal:
 npm start
 ```
 
+## Despliegue en Railway
+
+El repositorio incluye `railway.toml` y un endpoint de salud en:
+
+- `GET /health`
+
+Variables obligatorias en produccion:
+
+- `NODE_ENV=production`
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+- `JWT_SECRET`
+- `CORS_ORIGIN`
+
+Variables opcionales:
+
+- `DB_SSL=true` si el proveedor MySQL exige TLS.
+- `DB_SSL_REJECT_UNAUTHORIZED=false` solo si el proveedor usa un certificado no verificable.
+- `UPLOAD_DIR=/app/uploads` o la ruta montada de un volumen persistente.
+
+Railway proporciona `PORT` automaticamente. No se debe copiar el archivo `.env`
+al servicio ni almacenar secretos en el repositorio.
+
+Notas para produccion:
+
+- Los archivos guardados en `UPLOAD_DIR` son temporales y se pierden tras
+  redeploys si no hay un volumen persistente o almacenamiento externo.
+- Si se usa el servicio MySQL de Railway, las variables del backend pueden
+  mapearse desde las variables del servicio MySQL.
+
 ## Autenticacion
 
 Las rutas protegidas requieren:

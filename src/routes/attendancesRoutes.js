@@ -3,6 +3,7 @@ const { body, query } = require('express-validator');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const env = require('../config/env');
 
 const authMiddleware = require('../middlewares/authmiddleware');
 const { requireRole } = require('../middlewares/permissionsmiddleware');
@@ -20,7 +21,7 @@ const {
 } = require('../controller/attendancesController');
 
 // Configuración de Multer para la subida de justificaciones (soporte)
-const uploadDir = path.join(__dirname, '../../uploads/justifications');
+const uploadDir = path.join(path.resolve(env.UPLOAD_DIR), 'justifications');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }

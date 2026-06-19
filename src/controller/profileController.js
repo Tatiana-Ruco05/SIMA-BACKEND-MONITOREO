@@ -1,4 +1,4 @@
-const ProfileService = require('../services/ProfileService');
+const ProfileService = require('../services/profileService');
 const { successResponse, errorResponse } = require('../helpers/response');
 
 const getProfile = async (req, res) => {
