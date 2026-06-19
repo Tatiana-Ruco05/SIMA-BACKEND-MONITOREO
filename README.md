@@ -107,6 +107,8 @@ Conexion MySQL:
 
 - Si usas el plugin MySQL de Railway, el backend acepta directamente
   `MYSQLHOST`, `MYSQLPORT`, `MYSQLDATABASE`, `MYSQLUSER` y `MYSQLPASSWORD`.
+- Tambien acepta `MYSQL_URL` o `DATABASE_URL` si prefieres usar una unica URL
+  de conexion.
 - Si usas una base externa o variables propias, configura `DB_HOST`,
   `DB_PORT`, `DB_NAME`, `DB_USER` y `DB_PASSWORD`.
 
