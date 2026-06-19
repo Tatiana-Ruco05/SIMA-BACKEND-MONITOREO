@@ -6,6 +6,10 @@ const runtimeState = require('./config/runtimeState');
 const startServer = async () => {
   let scheduler = null;
 
+  console.log(
+    `Configuracion de arranque: node_env=${env.NODE_ENV}, port=${env.PORT}, db_host=${env.DB_HOST}, db_name=${env.DB_NAME}, jwt_configurado=${Boolean(env.JWT_SECRET)}`
+  );
+
   const connectDatabase = async () => {
     await sequelize.authenticate();
     runtimeState.database.connected = true;
