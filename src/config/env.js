@@ -1,6 +1,9 @@
 require('dotenv').config();
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isRailway = Boolean(
+  process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_SERVICE_ID
+);
+const isProduction = process.env.NODE_ENV === 'production' || isRailway;
 const jwtSecret = process.env.JWT_SECRET || (isProduction ? null : 'clave_desarrollo_sima');
 
 if (!jwtSecret) {
@@ -22,12 +25,34 @@ const firstDefined = (...keys) => {
   return undefined;
 };
 
+const parseDatabaseUrl = (value) => {
+  if (!value) return {};
+
+  try {
+    const url = new URL(value);
+
+    return {
+      host: url.hostname,
+      port: url.port,
+      name: url.pathname.replace(/^\//, ''),
+      user: decodeURIComponent(url.username || ''),
+      password: decodeURIComponent(url.password || ''),
+    };
+  } catch {
+    return {};
+  }
+};
+
+const databaseUrl = parseDatabaseUrl(
+  firstDefined('DATABASE_URL', 'MYSQL_URL')
+);
+
 const databaseVariables = {
-  host: firstDefined('DB_HOST', 'MYSQLHOST'),
-  port: firstDefined('DB_PORT', 'MYSQLPORT'),
-  name: firstDefined('DB_NAME', 'MYSQLDATABASE'),
-  user: firstDefined('DB_USER', 'MYSQLUSER'),
-  password: firstDefined('DB_PASSWORD', 'MYSQLPASSWORD'),
+  host: firstDefined('DB_HOST', 'MYSQLHOST') || databaseUrl.host,
+  port: firstDefined('DB_PORT', 'MYSQLPORT') || databaseUrl.port,
+  name: firstDefined('DB_NAME', 'MYSQLDATABASE') || databaseUrl.name,
+  user: firstDefined('DB_USER', 'MYSQLUSER') || databaseUrl.user,
+  password: firstDefined('DB_PASSWORD', 'MYSQLPASSWORD') || databaseUrl.password,
 };
 
 if (isProduction) {
@@ -38,7 +63,7 @@ if (isProduction) {
     ['DB_PASSWORD', 'MYSQLPASSWORD', databaseVariables.password],
   ]
     .filter(([, , value]) => !value)
-    .map(([dbKey, mysqlKey]) => `${dbKey} o ${mysqlKey}`);
+    .map(([dbKey, mysqlKey]) => `${dbKey}, ${mysqlKey}, DATABASE_URL o MYSQL_URL`);
 
   if (missingDatabaseVariables.length > 0) {
     throw new Error(
@@ -56,7 +81,7 @@ const database = {
 };
 
 module.exports = {
-  NODE_ENV: process.env.NODE_ENV || 'development',
+  NODE_ENV: process.env.NODE_ENV || (isRailway ? 'production' : 'development'),
   PORT: process.env.PORT || 3000,
   HOST: process.env.HOST || '0.0.0.0',
   DB_HOST: database.host,
