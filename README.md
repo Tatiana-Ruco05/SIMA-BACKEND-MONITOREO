@@ -91,9 +91,9 @@ Modo normal:
 npm start
 ```
 
-## Despliegue en Render
+## Despliegue en Railway
 
-El repositorio incluye `render.yaml` y un endpoint de salud en:
+El repositorio incluye `railway.toml` y un endpoint de salud en:
 
 - `GET /health`
 
@@ -112,18 +112,17 @@ Variables opcionales:
 
 - `DB_SSL=true` si el proveedor MySQL exige TLS.
 - `DB_SSL_REJECT_UNAUTHORIZED=false` solo si el proveedor usa un certificado no verificable.
-- `UPLOAD_DIR=/var/data/uploads` al conectar un disco persistente.
+- `UPLOAD_DIR=/app/uploads` o la ruta montada de un volumen persistente.
 
-Render proporciona `PORT` automaticamente. No se debe copiar el archivo `.env`
+Railway proporciona `PORT` automaticamente. No se debe copiar el archivo `.env`
 al servicio ni almacenar secretos en el repositorio.
 
-Limitaciones del plan gratuito:
+Notas para produccion:
 
-- El servicio puede suspenderse por inactividad, por lo que el planificador en
-  memoria no ejecutara tareas mientras la instancia este suspendida.
 - Los archivos guardados en `UPLOAD_DIR` son temporales y se pierden tras
-  reinicios o despliegues. Los soportes permanentes requieren almacenamiento
-  externo o un disco persistente en un plan compatible.
+  redeploys si no hay un volumen persistente o almacenamiento externo.
+- Si se usa el servicio MySQL de Railway, las variables del backend pueden
+  mapearse desde las variables del servicio MySQL.
 
 ## Autenticacion
 
