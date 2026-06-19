@@ -7,39 +7,63 @@ if (!jwtSecret) {
   throw new Error('JWT_SECRET es obligatorio en produccion');
 }
 
-const requiredProductionVariables = [
-  'DB_HOST',
-  'DB_NAME',
-  'DB_USER',
-  'DB_PASSWORD',
-];
+const parseBoolean = (value, defaultValue = false) => {
+  if (value === undefined) return defaultValue;
+  return String(value).toLowerCase() === 'true';
+};
+
+const firstDefined = (...keys) => {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value !== undefined && value !== '') {
+      return value;
+    }
+  }
+  return undefined;
+};
+
+const databaseVariables = {
+  host: firstDefined('DB_HOST', 'MYSQLHOST'),
+  port: firstDefined('DB_PORT', 'MYSQLPORT'),
+  name: firstDefined('DB_NAME', 'MYSQLDATABASE'),
+  user: firstDefined('DB_USER', 'MYSQLUSER'),
+  password: firstDefined('DB_PASSWORD', 'MYSQLPASSWORD'),
+};
 
 if (isProduction) {
-  const missingVariables = requiredProductionVariables.filter(
-    (key) => !process.env[key]
-  );
+  const missingDatabaseVariables = [
+    ['DB_HOST', 'MYSQLHOST', databaseVariables.host],
+    ['DB_NAME', 'MYSQLDATABASE', databaseVariables.name],
+    ['DB_USER', 'MYSQLUSER', databaseVariables.user],
+    ['DB_PASSWORD', 'MYSQLPASSWORD', databaseVariables.password],
+  ]
+    .filter(([, , value]) => !value)
+    .map(([dbKey, mysqlKey]) => `${dbKey} o ${mysqlKey}`);
 
-  if (missingVariables.length > 0) {
+  if (missingDatabaseVariables.length > 0) {
     throw new Error(
-      `Variables de entorno obligatorias faltantes: ${missingVariables.join(', ')}`
+      `Variables de entorno obligatorias faltantes: ${missingDatabaseVariables.join(', ')}`
     );
   }
 }
 
-const parseBoolean = (value, defaultValue = false) => {
-  if (value === undefined) return defaultValue;
-  return String(value).toLowerCase() === 'true';
+const database = {
+  host: databaseVariables.host || '127.0.0.1',
+  port: databaseVariables.port || 3306,
+  name: databaseVariables.name || 'sigma_mvp',
+  user: databaseVariables.user || 'root',
+  password: databaseVariables.password || '9090',
 };
 
 module.exports = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: process.env.PORT || 3000,
   HOST: process.env.HOST || '0.0.0.0',
-  DB_HOST: process.env.DB_HOST || '127.0.0.1',
-  DB_PORT: process.env.DB_PORT || 3306,
-  DB_NAME: process.env.DB_NAME || 'sigma_mvp',
-  DB_USER: process.env.DB_USER || 'root',
-  DB_PASSWORD: process.env.DB_PASSWORD || '9090',
+  DB_HOST: database.host,
+  DB_PORT: database.port,
+  DB_NAME: database.name,
+  DB_USER: database.user,
+  DB_PASSWORD: database.password,
   DB_SSL: parseBoolean(process.env.DB_SSL),
   DB_SSL_REJECT_UNAUTHORIZED: parseBoolean(
     process.env.DB_SSL_REJECT_UNAUTHORIZED,
