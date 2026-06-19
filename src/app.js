@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const env = require('./config/env');
+const runtimeState = require('./config/runtimeState');
 
 const app = express();
 app.disable('x-powered-by');
@@ -61,6 +62,7 @@ app.get('/health', (req, res) => {
     service: 'sima-backend-monitoreo',
     environment: env.NODE_ENV,
     uptime_seconds: Math.floor(process.uptime()),
+    database_connected: runtimeState.database.connected,
   });
 });
 
