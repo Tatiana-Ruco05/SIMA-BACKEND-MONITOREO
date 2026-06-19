@@ -100,13 +100,15 @@ El repositorio incluye `railway.toml` y un endpoint de salud en:
 Variables obligatorias en produccion:
 
 - `NODE_ENV=production`
-- `DB_HOST`
-- `DB_PORT`
-- `DB_NAME`
-- `DB_USER`
-- `DB_PASSWORD`
 - `JWT_SECRET`
 - `CORS_ORIGIN`
+
+Conexion MySQL:
+
+- Si usas el plugin MySQL de Railway, el backend acepta directamente
+  `MYSQLHOST`, `MYSQLPORT`, `MYSQLDATABASE`, `MYSQLUSER` y `MYSQLPASSWORD`.
+- Si usas una base externa o variables propias, configura `DB_HOST`,
+  `DB_PORT`, `DB_NAME`, `DB_USER` y `DB_PASSWORD`.
 
 Variables opcionales:
 

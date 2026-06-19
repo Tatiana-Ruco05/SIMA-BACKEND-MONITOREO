@@ -7,8 +7,8 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log('Conexion a la base de datos establecida correctamente');
 
-    const server = app.listen(env.PORT, env.HOST, () => {
-      console.log(`Servidor ejecutandose en ${env.HOST}:${env.PORT}`);
+    const server = app.listen(env.PORT, () => {
+      console.log(`Servidor ejecutandose en puerto ${env.PORT}`);
     });
 
     const EducationalSessionService = require('./services/EducationalSessionService');
