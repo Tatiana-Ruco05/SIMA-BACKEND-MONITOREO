@@ -34,6 +34,10 @@ class AlertService {
     return Math.round(ms / (1000 * 60 * 60 * 24));
   }
 
+  static _role(requester) {
+    return String(requester?.rol || '').toLowerCase().trim();
+  }
+
   static _dateBoundary(dateValue, endOfDay = false) {
     if (!dateValue) return null;
 
@@ -120,12 +124,6 @@ class AlertService {
           },
         ],
       },
-      {
-        model: Observation,
-        as: 'observacion',
-        required: false,
-        attributes: ['id_observacion', 'tipo_observacion', 'severidad', 'estado', 'fecha_observacion', 'descripcion'],
-      },
     ];
 
     if (includeObservationLinks) {
@@ -195,7 +193,7 @@ class AlertService {
   }
 
   static async _getInstructorGroupScope(requester) {
-    if (requester.rol !== 'instructor' || !requester.id_instructor) {
+    if (this._role(requester) !== 'instructor' || !requester.id_instructor) {
       return { leaderGroupIds: [], assignedGroupIds: [] };
     }
 
@@ -227,7 +225,7 @@ class AlertService {
     }
 
     const requestedGroupIds = filters.id_grupo ? [Number(filters.id_grupo)] : accessibleGroupIds;
-    if (requester.rol !== 'instructor') {
+    if (this._role(requester) !== 'instructor') {
       return { accessibleGroupIds, where: { id_grupo: { [Op.in]: requestedGroupIds } } };
     }
 
@@ -251,7 +249,7 @@ class AlertService {
   }
 
   static async _assertInstructorCanCreateForGroup(requester, id_grupo) {
-    if (requester.rol !== 'instructor' || !requester.id_instructor) {
+    if (this._role(requester) !== 'instructor' || !requester.id_instructor) {
       throw { status: 403, message: 'Solo un instructor activo puede crear alertas desde observaciones' };
     }
 
@@ -413,7 +411,6 @@ class AlertService {
     const payload = {
       id_aprendiz,
       id_grupo,
-      id_observacion,
       tipo_alerta,
       regla_disparo,
       origen,
@@ -431,6 +428,23 @@ class AlertService {
     } else {
       alert = await Alert.create({ ...payload, estado: 'ABIERTA' }, { transaction });
       created = true;
+    }
+
+    if (id_observacion) {
+      const existingLink = await AlertObservation.findOne({
+        where: { id_observacion },
+        transaction,
+      });
+      if (existingLink && Number(existingLink.id_alerta) !== Number(alert.id_alerta)) {
+        throw { status: 409, message: 'La observacion ya esta asociada a otra alerta' };
+      }
+      if (!existingLink) {
+        await AlertObservation.create({
+          id_alerta: alert.id_alerta,
+          id_observacion,
+          asociada_por: creada_por || 1,
+        }, { transaction });
+      }
     }
 
     if (created || ['GRAVE', 'CRITICA'].includes(alert.severidad) || notifyCoordinators) {
@@ -500,15 +514,16 @@ class AlertService {
   static async createManualAlert(data, requester) {
     const { id_aprendiz, id_grupo, severidad, descripcion, tipo_alerta = 'CONVIVENCIAL' } = data;
     if (!id_grupo) throw { status: 400, message: 'id_grupo es obligatorio para crear alertas' };
+    const requesterRole = this._role(requester);
 
-    if (!['coordinador', 'instructor'].includes(requester.rol)) {
+    if (!['super_admin', 'coordinador', 'instructor'].includes(requesterRole)) {
       throw { status: 403, message: 'No tienes permisos para crear alertas' };
     }
 
     await this._assertRequesterCanAccessGroup(requester, id_grupo);
 
     let idInstructorGenerador = null;
-    if (requester.rol === 'instructor') {
+    if (requesterRole === 'instructor') {
       idInstructorGenerador = requester.id_instructor;
     }
 
@@ -702,7 +717,7 @@ class AlertService {
   }
 
   static async getAlerts(filters, requester) {
-    if (!['coordinador', 'instructor'].includes(requester.rol)) {
+    if (!['super_admin', 'coordinador', 'instructor'].includes(this._role(requester))) {
       throw { status: 403, message: 'No tienes permisos para consultar alertas' };
     }
 
@@ -743,7 +758,7 @@ class AlertService {
   }
 
   static async getAlertById(id, requester) {
-    if (!['coordinador', 'instructor'].includes(requester.rol)) {
+    if (!['super_admin', 'coordinador', 'instructor'].includes(this._role(requester))) {
       throw { status: 403, message: 'No tienes permisos para consultar alertas' };
     }
 
@@ -779,8 +794,8 @@ class AlertService {
   }
 
   static async updateAlertStatus(id, estado, requester, justificacion_cierre, justificacion_reapertura) {
-    if (requester.rol !== 'coordinador') {
-      throw { status: 403, message: 'Solo el coordinador puede cerrar o reabrir alertas' };
+    if (!['super_admin', 'coordinador'].includes(this._role(requester))) {
+      throw { status: 403, message: 'Solo el coordinador o superadministrador puede cerrar o reabrir alertas' };
     }
 
     const allowedStates = ['ABIERTA', 'CERRADA'];

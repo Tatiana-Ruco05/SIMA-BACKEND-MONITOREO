@@ -311,7 +311,6 @@ class EducationalSessionService {
     const token = generateQrToken();
     await session.update({
       qr_token_hash: hashQrToken(token),
-      qr_expira_en: null,
     });
 
     return {
@@ -450,9 +449,9 @@ class EducationalSessionService {
         transaction,
       });
 
-      // Actualizar todos los registros PENDIENTE a INASISTENTE
+      // Actualizar todos los registros PENDIENTE a INASISTENCIA
       const [affectedCount] = await Attendance.update({
-        estado_asistencia: 'INASISTENTE',
+        estado_asistencia: 'INASISTENCIA',
         origen: 'AUTOMATICO_CIERRE',
         observacion: 'Inasistencia consolidada automaticamente al cerrar la sesion',
       }, {
@@ -470,7 +469,6 @@ class EducationalSessionService {
         fecha_cierre: new Date(),
         cerrada_por: requester?.id_usuario || null,
         qr_token_hash: null,
-        qr_expira_en: null,
       }, { transaction });
 
       for (const attendance of pendingAttendances) {
@@ -517,7 +515,6 @@ class EducationalSessionService {
       fecha_cancelacion: new Date(),
       motivo_cancelacion: cleanReason,
       qr_token_hash: null,
-      qr_expira_en: null,
     });
 
     return this._findSessionOrFail(id);

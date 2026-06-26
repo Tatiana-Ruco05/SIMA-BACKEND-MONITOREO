@@ -21,6 +21,22 @@ const AttendanceJustification = sequelize.define(
       type: DataTypes.STRING(255),
       allowNull: false,
     },
+    archivo_nombre_original: {
+      type: DataTypes.STRING(180),
+      allowNull: false,
+    },
+    archivo_mime: {
+      type: DataTypes.STRING(80),
+      allowNull: false,
+    },
+    archivo_tamano_bytes: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+    },
+    archivo_hash: {
+      type: DataTypes.STRING(64),
+      allowNull: false,
+    },
     comentario_aprendiz: {
       type: DataTypes.TEXT,
       allowNull: true,

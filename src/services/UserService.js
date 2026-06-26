@@ -9,6 +9,8 @@ const {
   ApprenticeGroup,
   InstructorGroup,
   Alert,
+  CoordinatorArea,
+  EducationalArea,
   sequelize,
 } = require('../models');
 const { hashPassword } = require('../helpers/bcrypt');
@@ -16,6 +18,10 @@ const { getPagination } = require('../helpers/pagination');
 const { assertRequesterCanAccessGroup } = require('../helpers/coordinatorAuth');
 
 class UserService {
+  static _roleName(value) {
+    return String(value || '').toLowerCase().trim();
+  }
+
   /**
    * Obtiene todos los usuarios
    */
@@ -108,18 +114,20 @@ class UserService {
       throw { status: 404, message: 'Usuario no encontrado' };
     }
 
-    if (requester.rol === 'coordinador') {
+    const requesterRole = String(requester.rol || '').toLowerCase();
+
+    if (requesterRole === 'super_admin' || requesterRole === 'coordinador') {
       return targetUser;
     }
 
-    if (requester.rol === 'aprendiz') {
+    if (requesterRole === 'aprendiz') {
       if (Number(requester.id_usuario) !== Number(id)) {
         throw { status: 403, message: 'No tienes permisos para consultar los datos de otro usuario' };
       }
       return targetUser;
     }
 
-    if (requester.rol === 'instructor') {
+    if (requesterRole === 'instructor') {
       if (!targetUser.aprendiz) {
         throw { status: 403, message: 'Un instructor solo puede consultar aprendices relacionados' };
       }
@@ -195,7 +203,18 @@ class UserService {
    * Crea un usuario y sus perfiles asociados usando transacción
    */
   static async createUser(data, requester) {
-    const { email, password, id_rol, tipo_documento, numero_documento, nombres, apellidos, telefono, id_grupo } = data;
+    const {
+      email,
+      password,
+      id_rol,
+      tipo_documento,
+      numero_documento,
+      nombres,
+      apellidos,
+      telefono,
+      id_grupo,
+      id_area,
+    } = data;
     const transaction = await sequelize.transaction();
 
     try {
@@ -208,8 +227,11 @@ class UserService {
       const role = await Role.findByPk(id_rol, { transaction });
       if (!role) throw { status: 404, message: 'Rol no encontrado' };
 
+      const roleName = this._roleName(role.nombre);
       let selectedGroup = null;
-      if (role.nombre === 'aprendiz') {
+      let selectedArea = null;
+
+      if (roleName === 'aprendiz') {
         if (!id_grupo) {
           throw { status: 400, message: 'La ficha activa es obligatoria para registrar un aprendiz' };
         }
@@ -229,6 +251,23 @@ class UserService {
         }
       }
 
+      if (roleName === 'coordinador') {
+        if (!id_area) {
+          throw { status: 400, message: 'El area es obligatoria para registrar un coordinador' };
+        }
+
+        selectedArea = await EducationalArea.findByPk(id_area, { transaction });
+        if (!selectedArea) throw { status: 404, message: 'Area de formacion no encontrada' };
+
+        const activeAreaCoordinator = await CoordinatorArea.findOne({
+          where: { id_area, estado: 'ACTIVO' },
+          transaction,
+        });
+        if (activeAreaCoordinator) {
+          throw { status: 409, message: 'El area seleccionada ya tiene un coordinador activo' };
+        }
+      }
+
       const plainPassword = password && String(password).trim() !== '' ? String(password) : String(numero_documento);
       const hashedPassword = await hashPassword(plainPassword);
 
@@ -237,7 +276,7 @@ class UserService {
         password: hashedPassword,
         id_rol,
         estado: 'ACTIVO',
-        debe_cambiar_password: role.nombre === 'aprendiz',
+        debe_cambiar_password: roleName === 'aprendiz',
       }, { transaction });
 
       await Person.create({
@@ -249,7 +288,7 @@ class UserService {
         telefono: telefono || null,
       }, { transaction });
 
-      await this._syncUserProfile(user.id_usuario, role.nombre, transaction);
+      await this._syncUserProfile(user.id_usuario, roleName, transaction);
 
       if (selectedGroup) {
         const apprentice = await Apprentice.findOne({
@@ -265,6 +304,15 @@ class UserService {
           id_aprendiz: apprentice.id_aprendiz,
           id_grupo: selectedGroup.id_grupo,
           estado: 'ACTIVO',
+        }, { transaction });
+      }
+
+      if (selectedArea) {
+        await CoordinatorArea.create({
+          id_usuario: user.id_usuario,
+          id_area: selectedArea.id_area,
+          estado: 'ACTIVO',
+          asignado_por: requester?.id_usuario || null,
         }, { transaction });
       }
 
@@ -289,7 +337,7 @@ class UserService {
    * Actualiza un usuario
    */
   static async _instructorCanAccessApprentice(requester, idAprendiz, transaction) {
-    if (requester.rol !== 'instructor' || !requester.id_instructor || !idAprendiz) {
+    if (this._roleName(requester.rol) !== 'instructor' || !requester.id_instructor || !idAprendiz) {
       return false;
     }
 
@@ -340,10 +388,11 @@ class UserService {
       });
       if (!user) throw { status: 404, message: 'Usuario no encontrado' };
 
-      const isCoordinator = requester.rol === 'coordinador';
+      const requesterRole = this._roleName(requester.rol);
+      const isAdminManager = ['super_admin', 'coordinador'].includes(requesterRole);
       const isSelfUpdate = Number(requester.id_usuario) === Number(id);
 
-      if (!isCoordinator && !isSelfUpdate) {
+      if (!isAdminManager && !isSelfUpdate) {
         throw { status: 403, message: 'No tienes permisos para modificar los datos de otro usuario' };
       }
 
@@ -355,12 +404,12 @@ class UserService {
       const userUpdateData = {};
       const personUpdateData = {};
 
-      if (isCoordinator) {
+      if (isAdminManager) {
         if (data.email !== undefined) userUpdateData.email = data.email;
-        if (isCoordinator && data.id_rol !== undefined) userUpdateData.id_rol = data.id_rol;
-        if (isCoordinator && data.estado !== undefined) userUpdateData.estado = data.estado;
+        if (data.id_rol !== undefined) userUpdateData.id_rol = data.id_rol;
+        if (data.estado !== undefined) userUpdateData.estado = data.estado;
 
-        if (isCoordinator && data.password && String(data.password).trim() !== '') {
+        if (data.password && String(data.password).trim() !== '') {
           userUpdateData.password = await hashPassword(String(data.password));
           userUpdateData.debe_cambiar_password = false;
         }
@@ -401,10 +450,10 @@ class UserService {
         await user.persona.update(personUpdateData, { transaction });
       }
 
-      if (isCoordinator && data.id_rol !== undefined) {
+      if (isAdminManager && data.id_rol !== undefined) {
         const newRole = await Role.findByPk(data.id_rol, { transaction });
         if (!newRole) throw { status: 404, message: 'Rol no encontrado' };
-        await this._syncUserProfile(user.id_usuario, newRole.nombre, transaction);
+        await this._syncUserProfile(user.id_usuario, this._roleName(newRole.nombre), transaction);
       }
 
       await transaction.commit();
@@ -435,7 +484,7 @@ class UserService {
       });
       if (!user) throw { status: 404, message: 'Usuario no encontrado' };
 
-      if (user.aprendiz && requester?.rol === 'coordinador') {
+      if (user.aprendiz && this._roleName(requester?.rol) === 'coordinador') {
         const activeLinks = await ApprenticeGroup.findAll({
           where: { id_aprendiz: user.aprendiz.id_aprendiz, estado: 'ACTIVO' },
           attributes: ['id_grupo'],
@@ -496,7 +545,7 @@ class UserService {
       if (!role) throw { status: 404, message: 'Rol no encontrado' };
 
       await user.update({ id_rol }, { transaction });
-      await this._syncUserProfile(user.id_usuario, role.nombre, transaction);
+      await this._syncUserProfile(user.id_usuario, this._roleName(role.nombre), transaction);
 
       await transaction.commit();
 
@@ -515,6 +564,7 @@ class UserService {
    * según el rol del usuario, resolviendo la duplicación de código.
    */
   static async _syncUserProfile(id_usuario, roleName, transaction) {
+    roleName = this._roleName(roleName);
     const apprenticeProfile = await Apprentice.findOne({ where: { id_usuario }, transaction });
     const instructorProfile = await Instructor.findOne({ where: { id_usuario }, transaction });
 

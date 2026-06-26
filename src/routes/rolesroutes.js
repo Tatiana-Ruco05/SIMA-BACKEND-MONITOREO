@@ -13,12 +13,12 @@ const {
 
 router.get('/', authMiddleware, getRoles);
 router.get('/:id', authMiddleware, getRoleById);
-router.get('/:id/usuarios', authMiddleware, requireRole('coordinador'), getUsersByRole);
+router.get('/:id/usuarios', authMiddleware, requireRole('SUPER_ADMIN', 'coordinador'), getUsersByRole);
 
 router.put(
   '/usuarios/:idUsuario',
   authMiddleware,
-  requireRole('coordinador'),
+  requireRole('SUPER_ADMIN', 'coordinador'),
   validateRequiredFields(['id_rol']),
   assignRoleToUser
 );

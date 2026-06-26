@@ -80,7 +80,7 @@ router.post(
   [
     body('id_sesion_formacion').isInt({ min: 1 }).withMessage('id_sesion_formacion es obligatorio'),
     body('id_aprendiz').isInt({ min: 1 }).withMessage('id_aprendiz es obligatorio'),
-    body('estado').isIn(['PRESENTE', 'TARDE', 'JUSTIFICADO']).withMessage('estado debe ser PRESENTE, TARDE o JUSTIFICADO'),
+    body('estado').isIn(['PRESENTE', 'TARDE']).withMessage('estado debe ser PRESENTE o TARDE'),
     body('observacion').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 255 }).withMessage('observacion no puede superar 255 caracteres'),
   ],
   validateRequest,

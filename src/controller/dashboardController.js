@@ -8,6 +8,14 @@ const {
   ApprenticeGroup,
   InstructorGroup,
   Apprentice,
+  User,
+  Role,
+  Instructor,
+  Environment,
+  IoTDevice,
+  IoTAttendanceAttempt,
+  BiometricFingerprint,
+  AttendanceJustification,
   Alert,
   Observation,
   ValidAbsencesView,
@@ -346,6 +354,104 @@ const getAreaDetail = async (req, res) => {
   }
 };
 
+const getSuperAdminSummary = async (_req, res) => {
+  try {
+    const [
+      totalUsers,
+      activeUsers,
+      totalSuperAdmins,
+      totalCoordinators,
+      totalInstructors,
+      totalApprentices,
+      totalAreas,
+      totalPrograms,
+      totalGroups,
+      activeGroups,
+      totalEnvironments,
+      activeEnvironments,
+      activeAlerts,
+      openObservations,
+      validAbsences,
+      activeDevices,
+      maintenanceDevices,
+      activeFingerprints,
+      revokedFingerprints,
+      pendingJustifications,
+      iotAttemptsToday,
+    ] = await Promise.all([
+      User.count(),
+      User.count({ where: { estado: 'ACTIVO' } }),
+      User.count({ include: [{ model: Role, as: 'rol', required: true, where: { nombre: 'SUPER_ADMIN' } }] }),
+      User.count({ include: [{ model: Role, as: 'rol', required: true, where: { nombre: 'coordinador' } }] }),
+      Instructor.count({ where: { estado: 'ACTIVO' } }),
+      Apprentice.count({ where: { estado: 'ACTIVO' } }),
+      EducationalArea.count(),
+      FormativeProgram.count(),
+      Group.count(),
+      Group.count({ where: { estado: 'EN_FORMACION' } }),
+      Environment.count(),
+      Environment.count({ where: { estado: 'ACTIVO' } }),
+      Alert.count({ where: { estado: 'ABIERTA' } }),
+      Observation.count({ where: { estado: 'ABIERTA' } }),
+      ValidAbsencesView.count(),
+      IoTDevice.count({ where: { estado: 'ACTIVO' } }),
+      IoTDevice.count({ where: { estado: 'MANTENIMIENTO' } }),
+      BiometricFingerprint.count({ where: { estado: 'ACTIVA' } }),
+      BiometricFingerprint.count({ where: { estado: 'REVOCADA' } }),
+      AttendanceJustification.count({ where: { estado: 'PENDIENTE' } }),
+      IoTAttendanceAttempt.count({
+        where: {
+          fecha_origen: {
+            [Op.gte]: new Date(new Date().setHours(0, 0, 0, 0)),
+          },
+        },
+      }),
+    ]);
+
+    const groupsByState = await Group.findAll({
+      attributes: ['estado', [fn('COUNT', col('id_grupo')), 'total']],
+      group: ['estado'],
+      raw: true,
+    });
+
+    const devicesByState = await IoTDevice.findAll({
+      attributes: ['estado', [fn('COUNT', col('id_dispositivo')), 'total']],
+      group: ['estado'],
+      raw: true,
+    });
+
+    return successResponse(res, 'Resumen del superadministrador obtenido correctamente', {
+      kpis: {
+        total_usuarios: totalUsers,
+        usuarios_activos: activeUsers,
+        total_super_admins: totalSuperAdmins,
+        total_coordinadores: totalCoordinators,
+        total_instructores_activos: totalInstructors,
+        total_aprendices_activos: totalApprentices,
+        total_areas: totalAreas,
+        total_programas: totalPrograms,
+        total_grupos: totalGroups,
+        total_grupos_activos: activeGroups,
+        total_ambientes: totalEnvironments,
+        ambientes_activos: activeEnvironments,
+        total_alertas_activas: activeAlerts,
+        total_observaciones_abiertas: openObservations,
+        total_inasistencias_validas: validAbsences,
+        dispositivos_activos: activeDevices,
+        dispositivos_mantenimiento: maintenanceDevices,
+        huellas_activas: activeFingerprints,
+        huellas_revocadas: revokedFingerprints,
+        justificaciones_pendientes: pendingJustifications,
+        intentos_iot_hoy: iotAttemptsToday,
+      },
+      grupos_por_estado: groupsByState,
+      dispositivos_por_estado: devicesByState,
+    });
+  } catch (error) {
+    return errorResponse(res, error.message || 'Error al obtener resumen del superadministrador', 500);
+  }
+};
+
 const getInstructorSummary = async (req, res) => {
   try {
     const idInstructor = req.user.id_instructor;
@@ -427,6 +533,7 @@ const getInstructorSummary = async (req, res) => {
 };
 
 module.exports = {
+  getSuperAdminSummary,
   getCoordinatorSummary,
   getAreaDetail,
   getInstructorSummary,

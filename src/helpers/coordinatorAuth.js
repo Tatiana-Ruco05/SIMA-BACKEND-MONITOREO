@@ -104,6 +104,13 @@ const getInstructorAccessibleGroupIds = async (id_usuario) => {
   }
 };
 
+const normalizeRole = (requester) => String(requester?.rol || '').toLowerCase().trim();
+
+const getAllGroupIds = async () => {
+  const groups = await Group.findAll({ attributes: ['id_grupo'] });
+  return groups.map((group) => Number(group.id_grupo));
+};
+
 const checkInstructorGroupAccess = async (id_usuario, id_grupo) => {
   try {
     const groupIds = await getInstructorAccessibleGroupIds(id_usuario);
@@ -116,12 +123,17 @@ const checkInstructorGroupAccess = async (id_usuario, id_grupo) => {
 
 const getAccessibleGroupIdsForRequester = async (requester) => {
   if (!requester || !requester.rol) return [];
+  const role = normalizeRole(requester);
 
-  if (requester.rol === 'coordinador') {
+  if (role === 'super_admin') {
+    return getAllGroupIds();
+  }
+
+  if (role === 'coordinador') {
     return getCoordinatorAccessibleGroupIds(requester.id_usuario);
   }
 
-  if (requester.rol === 'instructor') {
+  if (role === 'instructor') {
     return getInstructorAccessibleGroupIds(requester.id_usuario);
   }
 
@@ -133,6 +145,10 @@ const assertRequesterCanAccessGroup = async (
   id_grupo,
   message = 'No tienes permisos para acceder a este grupo'
 ) => {
+  if (normalizeRole(requester) === 'super_admin') {
+    return true;
+  }
+
   const groupIds = await getAccessibleGroupIdsForRequester(requester);
 
   if (!groupIds.includes(Number(id_grupo))) {
@@ -143,7 +159,13 @@ const assertRequesterCanAccessGroup = async (
 };
 
 const assertRequesterCanRegisterApprenticeInGroup = async (requester, grupo, transaction) => {
-  if (requester.rol === 'coordinador') {
+  const role = normalizeRole(requester);
+
+  if (role === 'super_admin') {
+    return true;
+  }
+
+  if (role === 'coordinador') {
     const hasAccess = await checkCoordinatorGroupAccess(requester.id_usuario, grupo.id_grupo);
     if (!hasAccess) {
       throw {
@@ -154,7 +176,7 @@ const assertRequesterCanRegisterApprenticeInGroup = async (requester, grupo, tra
     return true;
   }
 
-  if (requester.rol !== 'instructor') {
+  if (role !== 'instructor') {
     throw { status: 403, message: 'No tienes permisos para registrar aprendices' };
   }
 
@@ -194,4 +216,5 @@ module.exports = {
   getAccessibleGroupIdsForRequester,
   assertRequesterCanAccessGroup,
   assertRequesterCanRegisterApprenticeInGroup,
+  normalizeRole,
 };

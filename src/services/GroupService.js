@@ -150,6 +150,10 @@ class GroupService {
     return getAccessibleGroupIdsForRequester(requester);
   }
 
+  static _role(requester) {
+    return String(requester?.rol || '').toLowerCase().trim();
+  }
+
   static async _assertRequesterCanAccessGroup(requester, id_grupo) {
     return assertRequesterCanAccessGroup(
       requester,
@@ -163,6 +167,10 @@ class GroupService {
     id_programa,
     message = 'No tienes permisos para crear grupos en el area asociada a este programa de formacion'
   ) {
+    if (this._role(requester) === 'super_admin') {
+      return true;
+    }
+
     const tieneAcceso = await checkCoordinatorProgramAccess(requester.id_usuario, id_programa);
     if (!tieneAcceso) {
       throw { status: 403, message };
@@ -170,6 +178,10 @@ class GroupService {
   }
 
   static async _assertCoordinatorCanManageGroup(requester, id_grupo, message) {
+    if (this._role(requester) === 'super_admin') {
+      return true;
+    }
+
     const tieneAcceso = await checkCoordinatorGroupAccess(requester.id_usuario, id_grupo);
     if (!tieneAcceso) {
       throw { status: 403, message };
@@ -225,7 +237,9 @@ class GroupService {
 
     const whereAreaPrograma = {};
 
-    if (requester.rol === 'coordinador') {
+    const requesterRole = this._role(requester);
+
+    if (requesterRole === 'coordinador') {
       const areaIds = await getCoordinatorAreaIds(requester.id_usuario);
 
       if (!areaIds.length) {
@@ -244,7 +258,7 @@ class GroupService {
       whereAreaPrograma.id_area = Number(id_area);
     }
 
-    if (requester.rol === 'instructor') {
+    if (requesterRole === 'instructor') {
       const allGroupIds = await this._getAccessibleGroupIdsForRequester(requester);
 
       if (!allGroupIds.length) {
@@ -302,7 +316,7 @@ class GroupService {
     const group = await Group.findByPk(id, { include: this._includeRelations });
     if (!group) throw { status: 404, message: 'Grupo formativo no encontrado' };
 
-    if (requester.rol === 'coordinador' || requester.rol === 'instructor') {
+    if (['coordinador', 'instructor'].includes(this._role(requester))) {
       await this._assertRequesterCanAccessGroup(requester, id);
     }
 
@@ -327,9 +341,10 @@ class GroupService {
     const existingFicha = await Group.findOne({ where: { numero_ficha } });
     if (existingFicha) throw { status: 409, message: 'El numero de ficha ya esta registrado' };
 
-    if (id_ambiente) {
-      await this._findEnvironmentOrFail(id_ambiente);
+    if (!id_ambiente) {
+      throw { status: 400, message: 'El ambiente es obligatorio para crear un grupo formativo' };
     }
+    await this._findEnvironmentOrFail(id_ambiente);
 
     if (id_instructor_lider) {
       await this._findActiveInstructorOrFail(id_instructor_lider);
@@ -347,7 +362,7 @@ class GroupService {
         trimestres,
         fecha_inicio,
         fecha_fin,
-        id_ambiente: id_ambiente || null,
+        id_ambiente,
         id_instructor_lider: id_instructor_lider || null,
         estado: 'EN_FORMACION',
       }, { transaction });

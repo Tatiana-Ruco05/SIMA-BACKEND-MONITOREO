@@ -10,6 +10,18 @@ const parseBoolean = (value, defaultValue = false) => {
   return String(value).toLowerCase() === 'true';
 };
 
+const parseJsonObject = (value, fallback = {}) => {
+  if (!value) return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 const firstDefined = (...keys) => {
   for (const key of keys) {
     const value = process.env[key];
@@ -57,6 +69,15 @@ if (isProduction) {
 
   if (!jwtSecret) {
     missingVariables.push('JWT_SECRET');
+  }
+  if (!process.env.SIMA_IOT_DEVICE_SECRETS) {
+    missingVariables.push('SIMA_IOT_DEVICE_SECRETS');
+  }
+  if (!process.env.SIMA_BIOMETRIC_ENCRYPTION_KEY) {
+    missingVariables.push('SIMA_BIOMETRIC_ENCRYPTION_KEY');
+  }
+  if (!process.env.SIMA_BIOMETRIC_HASH_PEPPER) {
+    missingVariables.push('SIMA_BIOMETRIC_HASH_PEPPER');
   }
 
   const missingDatabaseVariables = [
@@ -107,4 +128,26 @@ module.exports = {
   SIMA_GEO_LONGITUD_CENTRO_CTPI: Number(process.env.SIMA_GEO_LONGITUD_CENTRO_CTPI || -76.56177339999999),
   SIMA_GEO_RADIO_PERMITIDO_METROS: Number(process.env.SIMA_GEO_RADIO_PERMITIDO_METROS || 200),
   SIMA_GEO_PRECISION_MAXIMA_METROS: Number(process.env.SIMA_GEO_PRECISION_MAXIMA_METROS || 80),
+  SIMA_IOT_MIN_QUALITY: Number(process.env.SIMA_IOT_MIN_QUALITY || 40),
+  SIMA_IOT_MAX_FUTURE_SKEW_SECONDS: Number(process.env.SIMA_IOT_MAX_FUTURE_SKEW_SECONDS || 30),
+  SIMA_IOT_DEVICE_SECRETS: parseJsonObject(
+    process.env.SIMA_IOT_DEVICE_SECRETS,
+    isProduction ? {} : {
+      'BIOMINI-LOCAL-001': 'dev-only-sima-biomini-mock-secret-change-me',
+      'ESP32-LAB-001': 'dev-only-sima-biomini-mock-secret-change-me',
+      'ESP32-TALLER-002': 'dev-only-sima-biomini-mock-secret-change-me',
+    }
+  ),
+  SIMA_BIOMETRIC_ENCRYPTION_KEY:
+    process.env.SIMA_BIOMETRIC_ENCRYPTION_KEY ||
+    (isProduction ? null : 'dev-only-32-byte-biometric-key!!'),
+  SIMA_BIOMETRIC_ENCRYPTION_KEY_ID:
+    process.env.SIMA_BIOMETRIC_ENCRYPTION_KEY_ID || 'local-dev-v1',
+  SIMA_BIOMETRIC_HASH_PEPPER:
+    process.env.SIMA_BIOMETRIC_HASH_PEPPER ||
+    (isProduction ? null : 'dev-only-biometric-hash-pepper-change-me'),
+  SIMA_BIOMETRIC_MIN_ENROLL_QUALITY:
+    Number(process.env.SIMA_BIOMETRIC_MIN_ENROLL_QUALITY || 40),
+  SIMA_BIOMETRIC_MATCHING_PACKAGE_TTL_SECONDS:
+    Number(process.env.SIMA_BIOMETRIC_MATCHING_PACKAGE_TTL_SECONDS || 60),
 };

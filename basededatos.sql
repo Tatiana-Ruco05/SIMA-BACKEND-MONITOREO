@@ -103,8 +103,8 @@ CREATE TABLE `coordinador_area` (
   `asignado_por` BIGINT UNSIGNED DEFAULT NULL,
   `cerrado_por` BIGINT UNSIGNED DEFAULT NULL,
   `motivo_cierre` VARCHAR(255) DEFAULT NULL,
-  `coordinador_activo_key` BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN `estado` = 'ACTIVO' THEN `id_usuario` ELSE NULL END) STORED,
-  `area_activa_key` BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN `estado` = 'ACTIVO' THEN `id_area` ELSE NULL END) STORED,
+  `coordinador_activo_key` BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN `estado` = 'ACTIVO' THEN `id_usuario` ELSE NULL END) VIRTUAL,
+  `area_activa_key` BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN `estado` = 'ACTIVO' THEN `id_area` ELSE NULL END) VIRTUAL,
   PRIMARY KEY (`id_coordinador_area`),
   UNIQUE KEY `uk_coord_area_periodo` (`id_usuario`, `id_area`, `fecha_inicio`),
   UNIQUE KEY `uk_coord_un_area_activa` (`coordinador_activo_key`),
@@ -331,7 +331,7 @@ CREATE TABLE `instructor_lider_historial` (
   `cerrado_por` BIGINT UNSIGNED DEFAULT NULL,
   `motivo` VARCHAR(255) DEFAULT NULL,
   `estado` ENUM('ACTIVO', 'INACTIVO') NOT NULL DEFAULT 'ACTIVO',
-  `lider_activo_grupo_key` BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN `estado` = 'ACTIVO' THEN `id_grupo` ELSE NULL END) STORED,
+  `lider_activo_grupo_key` BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN `estado` = 'ACTIVO' THEN `id_grupo` ELSE NULL END) VIRTUAL,
   PRIMARY KEY (`id_instructor_lider_historial`),
   UNIQUE KEY `uk_lider_activo_grupo` (`lider_activo_grupo_key`),
   KEY `idx_lider_historial_grupo` (`id_grupo`, `fecha_inicio`),
@@ -424,7 +424,7 @@ CREATE TABLE `horarios_formacion` (
   `tolerancia_minutos` INT NOT NULL DEFAULT 10,
   `estado` ENUM('ACTIVO', 'INACTIVO') NOT NULL DEFAULT 'ACTIVO',
   `motivo_inactivacion` VARCHAR(255) DEFAULT NULL,
-  `horario_activo_key` TINYINT GENERATED ALWAYS AS (CASE WHEN `estado` = 'ACTIVO' THEN 1 ELSE NULL END) STORED,
+  `horario_activo_key` TINYINT GENERATED ALWAYS AS (CASE WHEN `estado` = 'ACTIVO' THEN 1 ELSE NULL END) VIRTUAL,
   PRIMARY KEY (`id_horario`),
   UNIQUE KEY `uk_horario_trimestre_dia_bloque` (`id_grupo_trimestre`, `dia_semana`, `id_bloque_jornada`, `horario_activo_key`),
   UNIQUE KEY `uk_horario_ambiente_bloque` (`id_grupo_trimestre`, `id_ambiente`, `dia_semana`, `id_bloque_jornada`, `horario_activo_key`),
@@ -559,6 +559,7 @@ CREATE TABLE `huellas_biometricas` (
   `id_dispositivo_enrolamiento` BIGINT UNSIGNED DEFAULT NULL,
   `plantilla_biometrica_cifrada` VARBINARY(4096) NOT NULL,
   `plantilla_hash` CHAR(64) NOT NULL,
+  `calidad_captura` TINYINT UNSIGNED NOT NULL,
   `dedo` VARCHAR(30) DEFAULT NULL,
   `fecha_enrolamiento` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `enrolado_por` BIGINT UNSIGNED NOT NULL,
@@ -566,7 +567,7 @@ CREATE TABLE `huellas_biometricas` (
   `fecha_revocacion` DATETIME DEFAULT NULL,
   `revocada_por` BIGINT UNSIGNED DEFAULT NULL,
   `motivo_revocacion` VARCHAR(255) DEFAULT NULL,
-  `plantilla_activa_hash` CHAR(64) GENERATED ALWAYS AS (CASE WHEN `estado` = 'ACTIVA' THEN `plantilla_hash` ELSE NULL END) STORED,
+  `plantilla_activa_hash` CHAR(64) GENERATED ALWAYS AS (CASE WHEN `estado` = 'ACTIVA' THEN `plantilla_hash` ELSE NULL END) VIRTUAL,
   PRIMARY KEY (`id_huella`),
   UNIQUE KEY `uk_huella_activa_hash` (`plantilla_activa_hash`),
   KEY `idx_huellas_usuario_estado` (`id_usuario`, `estado`),
@@ -585,14 +586,14 @@ CREATE TABLE `huellas_biometricas` (
     ON DELETE RESTRICT,
   CONSTRAINT `fk_hb_revocada_por`
     FOREIGN KEY (`revocada_por`)
-    REFERENCES `usuarios` (`id_usuario`)
-    ON UPDATE CASCADE
-    ON DELETE SET NULL,
+    REFERENCES `usuarios` (`id_usuario`),
   CONSTRAINT `fk_hb_usuario`
     FOREIGN KEY (`id_usuario`)
     REFERENCES `usuarios` (`id_usuario`)
     ON UPDATE CASCADE
     ON DELETE RESTRICT,
+  CONSTRAINT `chk_huella_calidad`
+    CHECK (`calidad_captura` BETWEEN 0 AND 100),
   CONSTRAINT `chk_huella_revocacion`
     CHECK (
       (`estado` = 'ACTIVA' AND `fecha_revocacion` IS NULL AND `revocada_por` IS NULL AND `motivo_revocacion` IS NULL)
@@ -760,42 +761,54 @@ CREATE TABLE `asistencias` (
     CHECK ((`anulada` = FALSE AND `fecha_anulacion` IS NULL) OR (`anulada` = TRUE AND `fecha_anulacion` IS NOT NULL AND `motivo_anulacion` IS NOT NULL))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `eventos_iot` (
-  `id_evento_iot` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+CREATE TABLE `intentos_asistencia_iot` (
+  `id_intento_iot` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `id_dispositivo` BIGINT UNSIGNED NOT NULL,
   `id_sesion_formacion` BIGINT UNSIGNED DEFAULT NULL,
   `id_usuario` BIGINT UNSIGNED DEFAULT NULL,
   `id_asistencia` BIGINT UNSIGNED DEFAULT NULL,
-  `tipo_evento` ENUM('ASISTENCIA', 'ENROLAMIENTO', 'REVOCACION', 'CONEXION', 'SINCRONIZACION', 'FALLO') NOT NULL,
+  `tipo_intento` ENUM('ASISTENCIA', 'ENROLAMIENTO', 'REVOCACION', 'CONEXION', 'SINCRONIZACION', 'FALLO') NOT NULL,
   `resultado` ENUM('EXITOSO', 'FALLIDO', 'RECHAZADO', 'RECUPERADO') NOT NULL,
+  `calidad_captura` TINYINT UNSIGNED DEFAULT NULL,
+  `evento_uuid` VARCHAR(36) NOT NULL,
+  `nonce` VARCHAR(120) NOT NULL,
+  `firma_evento` VARCHAR(255) NOT NULL,
+  `fecha_origen` DATETIME NOT NULL,
+  `expira_en` DATETIME NOT NULL,
   `motivo` VARCHAR(120) DEFAULT NULL,
   `detalle` VARCHAR(500) DEFAULT NULL,
   `fecha_evento` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id_evento_iot`),
-  KEY `idx_eventos_iot_dispositivo_fecha` (`id_dispositivo`, `fecha_evento`),
-  KEY `idx_eventos_iot_sesion` (`id_sesion_formacion`),
-  KEY `idx_eventos_iot_usuario_fecha` (`id_usuario`, `fecha_evento`),
-  KEY `fk_eventos_iot_asistencia` (`id_asistencia`),
-  CONSTRAINT `fk_eventos_iot_dispositivo`
+  PRIMARY KEY (`id_intento_iot`),
+  UNIQUE KEY `uk_intentos_iot_evento_uuid` (`evento_uuid`),
+  UNIQUE KEY `uk_intentos_iot_nonce` (`nonce`),
+  KEY `idx_intentos_iot_dispositivo_fecha` (`id_dispositivo`, `fecha_evento`),
+  KEY `idx_intentos_iot_sesion` (`id_sesion_formacion`),
+  KEY `idx_intentos_iot_usuario_fecha` (`id_usuario`, `fecha_evento`),
+  KEY `fk_intentos_iot_asistencia` (`id_asistencia`),
+  CONSTRAINT `fk_intentos_iot_dispositivo`
     FOREIGN KEY (`id_dispositivo`)
     REFERENCES `dispositivos_iot` (`id_dispositivo`)
     ON UPDATE CASCADE
     ON DELETE RESTRICT,
-  CONSTRAINT `fk_eventos_iot_sesion`
+  CONSTRAINT `fk_intentos_iot_sesion`
     FOREIGN KEY (`id_sesion_formacion`)
     REFERENCES `sesiones_formacion` (`id_sesion_formacion`)
     ON UPDATE CASCADE
     ON DELETE SET NULL,
-  CONSTRAINT `fk_eventos_iot_usuario`
+  CONSTRAINT `fk_intentos_iot_usuario`
     FOREIGN KEY (`id_usuario`)
     REFERENCES `usuarios` (`id_usuario`)
     ON UPDATE CASCADE
     ON DELETE SET NULL,
-  CONSTRAINT `fk_eventos_iot_asistencia`
+  CONSTRAINT `fk_intentos_iot_asistencia`
     FOREIGN KEY (`id_asistencia`)
     REFERENCES `asistencias` (`id_asistencia`)
     ON UPDATE CASCADE
-    ON DELETE SET NULL
+    ON DELETE SET NULL,
+  CONSTRAINT `chk_intentos_iot_calidad`
+    CHECK (`calidad_captura` IS NULL OR `calidad_captura` BETWEEN 0 AND 100),
+  CONSTRAINT `chk_intentos_iot_ventana`
+    CHECK (`expira_en` > `fecha_origen`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `evidencias_asistencia` (
@@ -807,7 +820,7 @@ CREATE TABLE `evidencias_asistencia` (
   `id_usuario_registra` BIGINT UNSIGNED DEFAULT NULL,
   `id_dispositivo` BIGINT UNSIGNED DEFAULT NULL,
   `id_acceso` BIGINT UNSIGNED DEFAULT NULL,
-  `id_evento_iot` BIGINT UNSIGNED DEFAULT NULL,
+  `id_intento_iot` BIGINT UNSIGNED DEFAULT NULL,
   `qr_token_hash` VARCHAR(255) DEFAULT NULL,
   `latitud` DECIMAL(10,8) DEFAULT NULL,
   `longitud` DECIMAL(11,8) DEFAULT NULL,
@@ -821,7 +834,7 @@ CREATE TABLE `evidencias_asistencia` (
   KEY `fk_evidencia_usuario` (`id_usuario_registra`),
   KEY `fk_evidencia_dispositivo` (`id_dispositivo`),
   KEY `fk_evidencia_acceso` (`id_acceso`),
-  KEY `fk_evidencia_evento_iot` (`id_evento_iot`),
+  KEY `fk_evidencia_intento_iot` (`id_intento_iot`),
   CONSTRAINT `fk_evidencia_asistencia`
     FOREIGN KEY (`id_asistencia`)
     REFERENCES `asistencias` (`id_asistencia`)
@@ -842,9 +855,9 @@ CREATE TABLE `evidencias_asistencia` (
     REFERENCES `accesos_ambiente` (`id_acceso`)
     ON UPDATE CASCADE
     ON DELETE SET NULL,
-  CONSTRAINT `fk_evidencia_evento_iot`
-    FOREIGN KEY (`id_evento_iot`)
-    REFERENCES `eventos_iot` (`id_evento_iot`)
+  CONSTRAINT `fk_evidencia_intento_iot`
+    FOREIGN KEY (`id_intento_iot`)
+    REFERENCES `intentos_asistencia_iot` (`id_intento_iot`)
     ON UPDATE CASCADE
     ON DELETE SET NULL,
   CONSTRAINT `chk_evidencia_latitud`
@@ -912,7 +925,7 @@ CREATE TABLE `observaciones` (
   `fecha_anulacion` DATETIME DEFAULT NULL,
   `anulada_por` BIGINT UNSIGNED DEFAULT NULL,
   `motivo_anulacion` VARCHAR(255) DEFAULT NULL,
-  `observacion_automatica_key` BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN `origen` = 'AUTOMATICO' THEN `id_sesion_formacion` ELSE NULL END) STORED,
+  `observacion_automatica_key` BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN `origen` = 'AUTOMATICO' THEN `id_sesion_formacion` ELSE NULL END) VIRTUAL,
   PRIMARY KEY (`id_observacion`),
   UNIQUE KEY `uk_obs_auto_aprendiz_sesion` (`id_aprendiz`, `observacion_automatica_key`),
   KEY `idx_obs_aprendiz_grupo_estado` (`id_aprendiz`, `id_grupo`, `estado`),
@@ -937,9 +950,7 @@ CREATE TABLE `observaciones` (
     ON DELETE RESTRICT,
   CONSTRAINT `fk_obs_sesion`
     FOREIGN KEY (`id_sesion_formacion`)
-    REFERENCES `sesiones_formacion` (`id_sesion_formacion`)
-    ON UPDATE CASCADE
-    ON DELETE SET NULL,
+    REFERENCES `sesiones_formacion` (`id_sesion_formacion`),
   CONSTRAINT `fk_obs_anulada_por`
     FOREIGN KEY (`anulada_por`)
     REFERENCES `usuarios` (`id_usuario`)
@@ -972,7 +983,7 @@ CREATE TABLE `alertas` (
   `justificacion_reapertura` TEXT DEFAULT NULL,
   `fecha_reapertura` DATETIME DEFAULT NULL,
   `reabierta_por` BIGINT UNSIGNED DEFAULT NULL,
-  `alerta_abierta_key` TINYINT GENERATED ALWAYS AS (CASE WHEN `estado` = 'ABIERTA' THEN 1 ELSE NULL END) STORED,
+  `alerta_abierta_key` TINYINT GENERATED ALWAYS AS (CASE WHEN `estado` = 'ABIERTA' THEN 1 ELSE NULL END) VIRTUAL,
   PRIMARY KEY (`id_alerta`),
   UNIQUE KEY `uk_alerta_abierta_tipo` (`id_aprendiz`, `id_grupo`, `tipo_alerta`, `alerta_abierta_key`),
   KEY `idx_alertas_grupo_estado_tipo` (`id_grupo`, `estado`, `tipo_alerta`),
@@ -1045,7 +1056,7 @@ CREATE TABLE `notificaciones` (
   `id_observacion` BIGINT UNSIGNED DEFAULT NULL,
   `id_sesion_formacion` BIGINT UNSIGNED DEFAULT NULL,
   `id_justificacion` BIGINT UNSIGNED DEFAULT NULL,
-  `id_evento_iot` BIGINT UNSIGNED DEFAULT NULL,
+  `id_intento_iot` BIGINT UNSIGNED DEFAULT NULL,
   `titulo` VARCHAR(120) NOT NULL,
   `mensaje` VARCHAR(255) NOT NULL,
   `tipo` ENUM('ALERTA', 'OBSERVACION', 'ASISTENCIA', 'SESION', 'JUSTIFICACION', 'IOT', 'SISTEMA') NOT NULL,
@@ -1058,7 +1069,7 @@ CREATE TABLE `notificaciones` (
   KEY `fk_notificaciones_observacion` (`id_observacion`),
   KEY `fk_notificaciones_sesion` (`id_sesion_formacion`),
   KEY `fk_notificaciones_justificacion` (`id_justificacion`),
-  KEY `fk_notificaciones_evento_iot` (`id_evento_iot`),
+  KEY `fk_notificaciones_intento_iot` (`id_intento_iot`),
   CONSTRAINT `fk_notificaciones_usuario`
     FOREIGN KEY (`id_usuario`)
     REFERENCES `usuarios` (`id_usuario`)
@@ -1084,9 +1095,9 @@ CREATE TABLE `notificaciones` (
     REFERENCES `justificaciones_asistencia` (`id_justificacion`)
     ON UPDATE CASCADE
     ON DELETE SET NULL,
-  CONSTRAINT `fk_notificaciones_evento_iot`
-    FOREIGN KEY (`id_evento_iot`)
-    REFERENCES `eventos_iot` (`id_evento_iot`)
+  CONSTRAINT `fk_notificaciones_intento_iot`
+    FOREIGN KEY (`id_intento_iot`)
+    REFERENCES `intentos_asistencia_iot` (`id_intento_iot`)
     ON UPDATE CASCADE
     ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1344,10 +1355,6 @@ BEGIN
         SET MESSAGE_TEXT = 'Las marcas de asistencia solo se registran en sesiones abiertas';
     END IF;
 
-    IF NEW.`origen` = 'IOT_HUELLA' AND NEW.`id_acceso` IS NULL THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'La asistencia IoT requiere acceso asociado';
-    END IF;
 END$$
 
 CREATE TRIGGER `trg_validar_asistencia_upd`
@@ -1374,10 +1381,6 @@ BEGIN
         SET MESSAGE_TEXT = 'Las marcas de asistencia solo se registran en sesiones abiertas';
     END IF;
 
-    IF NEW.`origen` = 'IOT_HUELLA' AND NEW.`id_acceso` IS NULL THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'La asistencia IoT requiere acceso asociado';
-    END IF;
 END$$
 
 CREATE TRIGGER `trg_validar_justificacion_aprendiz_ins`
@@ -1452,9 +1455,9 @@ BEGIN
         SELECT COUNT(*)
           INTO v_huellas_activas
           FROM `huellas_biometricas`
-         WHERE `id_usuario` = NEW.`id_usuario`
-           AND `estado` = 'ACTIVA'
-           AND `id_huella` <> OLD.`id_huella`;
+          WHERE `id_usuario` = NEW.`id_usuario`
+            AND `estado` = 'ACTIVA'
+            AND `id_huella` <> OLD.`id_huella`;
         IF v_huellas_activas >= 2 THEN
             SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Un usuario no puede tener mas de dos huellas activas';
@@ -1595,9 +1598,9 @@ INSERT INTO `dispositivos_iot` (`codigo_dispositivo`, `id_ambiente`, `tipo_dispo
 ('ESP32-LAB-001', 1, 'ESP32_HUELLA', 'ACTIVO', '2026-06-17 06:50:00', '2026-06-17 06:51:00', 1),
 ('ESP32-TALLER-002', 2, 'ESP32_HUELLA', 'ACTIVO', NULL, NULL, 1);
 
-INSERT INTO `huellas_biometricas` (`id_usuario`, `id_dispositivo_enrolamiento`, `plantilla_biometrica_cifrada`, `plantilla_hash`, `dedo`, `enrolado_por`, `estado`) VALUES
-(4, 1, UNHEX(SHA2('plantilla-cifrada-demo-jorge-1', 512)), SHA2('plantilla-demo-jorge-1', 256), 'INDICE_DERECHO', 1, 'ACTIVA'),
-(4, 1, UNHEX(SHA2('plantilla-cifrada-demo-jorge-2', 512)), SHA2('plantilla-demo-jorge-2', 256), 'INDICE_IZQUIERDO', 1, 'ACTIVA');
+INSERT INTO `huellas_biometricas` (`id_usuario`, `id_dispositivo_enrolamiento`, `plantilla_biometrica_cifrada`, `plantilla_hash`, `calidad_captura`, `dedo`, `enrolado_por`, `estado`) VALUES
+(4, 1, UNHEX(SHA2('plantilla-cifrada-demo-jorge-1', 512)), SHA2('plantilla-demo-jorge-1', 256), 86, 'INDICE_DERECHO', 1, 'ACTIVA'),
+(4, 1, UNHEX(SHA2('plantilla-cifrada-demo-jorge-2', 512)), SHA2('plantilla-demo-jorge-2', 256), 84, 'INDICE_IZQUIERDO', 1, 'ACTIVA');
 
 INSERT INTO `accesos_ambiente` (`id_usuario`, `id_dispositivo`, `tipo_evento`, `resultado`, `observacion`) VALUES
 (4, 1, 'ENTRADA', 'PERMITIDO', 'Ingreso validado por huella'),
@@ -1609,9 +1612,9 @@ INSERT INTO `sesiones_formacion` (`id_horario`, `id_grupo_trimestre`, `id_clase_
 INSERT INTO `asistencias` (`id_sesion_formacion`, `id_aprendiz`, `estado_asistencia`, `origen`) VALUES
 (1, 1, 'PENDIENTE', NULL);
 
-INSERT INTO `eventos_iot` (`id_dispositivo`, `id_sesion_formacion`, `id_usuario`, `tipo_evento`, `resultado`, `motivo`, `detalle`) VALUES
-(1, 1, 4, 'ASISTENCIA', 'EXITOSO', 'HUELLA_VALIDADA', 'Intento IoT exitoso de ejemplo'),
-(1, 1, NULL, 'ASISTENCIA', 'RECHAZADO', 'HUELLA_NO_IDENTIFICADA', 'Intento fallido conservado sin usuario identificado');
+INSERT INTO `intentos_asistencia_iot` (`id_dispositivo`, `id_sesion_formacion`, `id_usuario`, `tipo_intento`, `resultado`, `calidad_captura`, `evento_uuid`, `nonce`, `firma_evento`, `fecha_origen`, `expira_en`, `motivo`, `detalle`) VALUES
+(1, 1, 4, 'ASISTENCIA', 'EXITOSO', 88, '00000000-0000-4000-8000-000000000001', 'seed-nonce-iot-0001', 'seed-firma-iot-demo-0001', '2026-06-17 07:05:00', '2026-06-17 07:10:00', 'HUELLA_VALIDADA', 'Intento IoT exitoso de ejemplo'),
+(1, 1, NULL, 'ASISTENCIA', 'RECHAZADO', 42, '00000000-0000-4000-8000-000000000002', 'seed-nonce-iot-0002', 'seed-firma-iot-demo-0002', '2026-06-17 07:07:00', '2026-06-17 07:12:00', 'HUELLA_NO_IDENTIFICADA', 'Intento fallido conservado sin usuario identificado');
 
 UPDATE `asistencias`
    SET `id_acceso` = 1,
@@ -1620,11 +1623,11 @@ UPDATE `asistencias`
        `origen` = 'IOT_HUELLA'
  WHERE `id_asistencia` = 1;
 
-UPDATE `eventos_iot`
+UPDATE `intentos_asistencia_iot`
    SET `id_asistencia` = 1
- WHERE `id_evento_iot` = 1;
+ WHERE `id_intento_iot` = 1;
 
-INSERT INTO `evidencias_asistencia` (`id_asistencia`, `metodo`, `resultado`, `id_usuario_registra`, `id_dispositivo`, `id_acceso`, `id_evento_iot`, `detalle`) VALUES
+INSERT INTO `evidencias_asistencia` (`id_asistencia`, `metodo`, `resultado`, `id_usuario_registra`, `id_dispositivo`, `id_acceso`, `id_intento_iot`, `detalle`) VALUES
 (1, 'IOT_HUELLA', 'APROBADA', 4, 1, 1, 1, 'Asistencia validada por lector IoT de huella');
 
 INSERT INTO `observaciones` (`id_aprendiz`, `id_grupo`, `id_instructor`, `tipo_observacion`, `severidad`, `origen`, `descripcion`, `estado`) VALUES

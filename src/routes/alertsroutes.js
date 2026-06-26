@@ -76,7 +76,7 @@ const updateStatusValidations = [
 router.get(
   '/',
   authMiddleware,
-  requireRole('coordinador', 'instructor'),
+  requireRole('SUPER_ADMIN', 'coordinador', 'instructor'),
   queryFilterValidations,
   validateRequest,
   getAlerts
@@ -94,7 +94,7 @@ router.post(
 router.post(
   '/manual',
   authMiddleware,
-  requireRole('instructor', 'coordinador'),
+  requireRole('SUPER_ADMIN', 'instructor', 'coordinador'),
   createManualAlertValidations,
   validateRequest,
   createManualAlertController
@@ -103,7 +103,7 @@ router.post(
 router.get(
   '/:id/observations',
   authMiddleware,
-  requireRole('coordinador', 'instructor'),
+  requireRole('SUPER_ADMIN', 'coordinador', 'instructor'),
   idParamValidation('id'),
   validateRequest,
   getAlertObservationsController
@@ -112,7 +112,7 @@ router.get(
 router.get(
   '/:id',
   authMiddleware,
-  requireRole('coordinador', 'instructor'),
+  requireRole('SUPER_ADMIN', 'coordinador', 'instructor'),
   idParamValidation('id'),
   validateRequest,
   getAlertById
@@ -121,7 +121,7 @@ router.get(
 router.patch(
   '/:id/status',
   authMiddleware,
-  requireRole('coordinador'),
+  requireRole('SUPER_ADMIN', 'coordinador'),
   idParamValidation('id'),
   updateStatusValidations,
   validateRequest,
@@ -131,7 +131,7 @@ router.patch(
 router.post(
   '/reevaluate/attendance/:idAprendiz',
   authMiddleware,
-  requireRole('coordinador', 'instructor'),
+  requireRole('SUPER_ADMIN', 'coordinador', 'instructor'),
   idParamValidation('idAprendiz'),
   validateRequest,
   reevaluateAttendanceAlertController
@@ -140,7 +140,7 @@ router.post(
 router.post(
   '/reevaluate/observations/:idAprendiz',
   authMiddleware,
-  requireRole('coordinador', 'instructor'),
+  requireRole('SUPER_ADMIN', 'coordinador', 'instructor'),
   idParamValidation('idAprendiz'),
   validateRequest,
   reevaluateObservationAlertController

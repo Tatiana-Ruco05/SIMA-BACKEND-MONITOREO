@@ -24,7 +24,7 @@ La implementacion mantiene el alcance solicitado: solo base de datos y documenta
 | Trimestre conserva `CANCELADO` como estado excepcional. | `grupo_trimestre.estado` admite `PROGRAMADO`, `ACTIVO`, `COMPLETADO`, `CANCELADO`. |
 | Las huellas se almacenan en SIMA como plantilla cifrada por aplicacion. | `huellas_biometricas` usa `plantilla_biometrica_cifrada` y `plantilla_hash`; no existe campo de imagen cruda. |
 | El dispositivo no almacena plantillas. | Las plantillas pertenecen al usuario en SIMA; el dispositivo solo queda como origen de enrolamiento/evento. |
-| Intentos IoT fallidos no identificados deben conservarse. | `eventos_iot.id_usuario` y `accesos_ambiente.id_usuario` permiten `NULL`. |
+| Intentos IoT fallidos no identificados deben conservarse. | `intentos_asistencia_iot.id_usuario` permite `NULL`; `accesos_ambiente` queda separado para trazabilidad de acceso fisico fuera del intento oficial. |
 | `PENDIENTE` puede no tener origen. | `asistencias` permite `origen = NULL` solo cuando `estado_asistencia = 'PENDIENTE'`. |
 | Las notificaciones son historicas. | No se eliminan en cascada; las referencias opcionales usan `ON DELETE SET NULL`. |
 
@@ -50,7 +50,7 @@ La implementacion mantiene el alcance solicitado: solo base de datos y documenta
 | Asistencias | Se agrego anulacion funcional. | Cancelar sesiones o corregir errores sin borrar evidencia. | Campos `anulada`, `fecha_anulacion`, `anulada_por`, `motivo_anulacion`. | EP05-H11 | Perdida de historial por eliminacion fisica. |
 | Asistencias | Trigger impide asistencia activa en sesion cancelada. | Una sesion cancelada no debe generar asistencia vigente. | Validaciones de insert/update. | EP05-H11 | Registros validos sobre sesiones anuladas. |
 | QR | Se conserva `qr_token_hash` sin semantica de expiracion corta. | El QR sigue siendo evidencia tecnica sin acoplarse a caducidad rigida. | Campo hash en sesion. | EP05 | Exposicion de token o regla temporal incorrecta. |
-| Evidencias | Se amplio `evidencias_asistencia`. | Registrar QR, IoT, manual, geolocalizacion, validacion facial y resultado. | FK a acceso/evento/dispositivo, detalle y metodo. | EP05, EP06, EP07-H09 | Evidencia dispersa o destructiva. |
+| Evidencias | Se amplio `evidencias_asistencia`. | Registrar QR, IoT, manual, geolocalizacion, validacion facial y resultado. | FK a intento IoT/dispositivo, detalle y metodo; `accesos_ambiente` queda como referencia heredada no oficial para Fase 1 biometrica. | EP05, EP06, EP07-H09 | Evidencia dispersa o destructiva. |
 | Justificaciones | Estados `PENDIENTE`, `APROBADA`, `RECHAZADA`. | Alinear flujo aprobado. | Enum definitivo. | EP05-H15, EP06 | Estados ambiguos. |
 | Justificaciones | Se agregaron metadatos de archivo. | Controlar soporte sin entrar aun a versionado completo. | Nombre original, MIME, tamano y hash. | EP05-H15 | Archivos sobrescritos sin trazabilidad minima. |
 | Justificaciones | Una justificacion activa por asistencia. | Evitar multiples soportes inconsistentes vigentes. | `UNIQUE KEY uk_justificacion_asistencia_activa`. | EP05-H15 | Doble revision o estados contradictorios. |
@@ -62,15 +62,15 @@ La implementacion mantiene el alcance solicitado: solo base de datos y documenta
 | Observaciones-alertas | Al asociar una observacion a alerta se cierra la observacion. | Mantener cierre automatico de observaciones escaladas. | Trigger `trg_cerrar_observacion_al_escalar`. | EP03, EP04 | Observaciones escaladas aun abiertas. |
 | Alertas | Se evita alerta abierta duplicada por aprendiz, grupo y tipo. | La acumulacion debe actualizar una alerta abierta existente. | Llave unica condicional `uk_alerta_abierta_tipo`. | EP04 | Alertas repetidas por el mismo riesgo. |
 | Alertas | Se conservan datos de cierre y reapertura. | Solo coordinador o SUPER_ADMIN puede cerrar/reabrir con motivo. | Campos de justificacion, fecha y responsable. | EP04, EP07-H05 | Cierres sin responsable o reaperturas sin contexto. |
-| Notificaciones | Tipos ampliados: alerta, observacion, asistencia, sesion, justificacion, IoT y sistema. | El MVP exige notificaciones obligatorias de eventos clave. | Enum ampliado y FKs opcionales. | EP06, EP07-H09 | Eventos MVP sin canal historico. |
+| Notificaciones | Tipos ampliados: alerta, observacion, asistencia, sesion, justificacion, IoT y sistema. | Fase 1 exige respuesta inmediata y deja notificaciones historicas/push para Fase 2. | Enum ampliado y FKs opcionales para evolucion posterior. | EP06, EP07-H09 | Eventos MVP sin trazabilidad futura. |
 | Notificaciones | Se retiro cualquier cascada destructiva. | La notificacion debe sobrevivir aunque la entidad se inactive o se limpie. | `ON DELETE SET NULL` o `RESTRICT`. | EP06 | Perdida de historial del aprendiz o del administrador. |
-| Dispositivos IoT | Se completo monitoreo de conexion, sincronizacion, fallos y recuperacion. | Detectar fallos sin inspeccion manual. | Campos `ultima_conexion`, `ultima_sincronizacion`, `ultimo_fallo`, `fallos_consecutivos`, `ultima_recuperacion`. | EP07-H08, EP07-H09 | Incidentes IoT invisibles. |
+| Dispositivos IoT | Se completo monitoreo de conexion, sincronizacion, fallos y recuperacion. | Detectar fallos sin inspeccion manual. | Campos `ultima_conexion`, `ultima_sincronizacion`, `ultimo_fallo`, `fallos_consecutivos`, `fecha_recuperacion`. | EP07-H08, EP07-H09 | Incidentes IoT invisibles. |
 | Dispositivos IoT | Estados `ACTIVO`, `INACTIVO`, `MANTENIMIENTO`. | Controlar operacion del lector. | Enum y validaciones en accesos/eventos. | EP07-H08 | Eventos desde dispositivos no operativos. |
-| Eventos IoT | Se creo `eventos_iot`. | Conservar intentos exitosos y fallidos. | Permite usuario nulo, sesion/dispositivo, resultado, motivo y detalle. | EP07-H09, EP05 | Fallos sin evidencia para soporte. |
+| Intentos IoT | Se define `intentos_asistencia_iot` como fuente oficial. | Conservar intentos biometricos exitosos y fallidos sin tratarlos como acceso fisico. | Permite usuario nulo, sesion/dispositivo, resultado, calidad, firma, nonce, expiracion, motivo y detalle. | EP07-H09, EP05 | Fallos sin evidencia para soporte o eventos falsificables. |
 | Accesos ambiente | `id_usuario` permite `NULL` en intentos no identificados. | Una huella fallida puede no mapearse a usuario. | FK opcional con resultado. | EP07-H09 | Imposibilidad de auditar intentos anonimos. |
 | Huellas | `codigo_huella` se reemplazo por `plantilla_biometrica_cifrada`. | Aclarar que no es slot ni codigo externo, sino plantilla protegida. | `VARBINARY(4096)` para plantilla cifrada por aplicacion y `plantilla_hash` para unicidad. | EP07-H10 | Ambiguedad critica de seguridad biometrica. |
 | Huellas | Estados `ACTIVA`, `REVOCADA`. | Eliminar `INACTIVA` del dominio de huellas. | Enum definitivo. | EP07-H10, EP07-H11 | Estados incoherentes con revocacion. |
-| Huellas | Maximo dos huellas activas por usuario. | Cumplir decision funcional de enrolamiento. | Triggers de insert/update. | EP07-H10 | Enrolamientos ilimitados o inconsistentes. |
+| Huellas | Maximo dos huellas activas por usuario institucional, no por dispositivo. | Cumplir decision funcional de lector portable. | Triggers de insert/update. | EP07-H10 | Enrolamientos ilimitados o dependencia incorrecta del lector. |
 | Huellas | Revocacion con responsable, fecha y motivo. | Renovar plantilla sin perder trazabilidad. | Check constraint estricto. | EP07-H11 | Revocaciones sin auditoria. |
 | Seeds | Se ajustaron roles, usuarios, perfiles, area, grupo, lider, horario, dispositivo, huellas, eventos y asistencia. | Permitir levantar una base coherente con las nuevas restricciones. | Datos iniciales compatibles con llaves y triggers. | EP01-EP07 | Seeds rotos o contradictorios. |
 
@@ -105,7 +105,7 @@ La implementacion mantiene el alcance solicitado: solo base de datos y documenta
 | Verificacion de `SUPER_ADMIN` | Rol, seed y protecciones presentes. |
 | Verificacion de anulacion de observaciones | Campos y trigger presentes. |
 | Verificacion de anulacion de asistencias | Campos y checks presentes. |
-| Verificacion de eventos IoT | Tabla, FKs y usuario nullable presentes. |
+| Verificacion de intentos IoT | Tabla `intentos_asistencia_iot`, FKs, firma, nonce y usuario nullable presentes. |
 | Verificacion de revocacion de huellas | Estado, responsable, fecha y motivo presentes. |
 
 ## Pendientes y recomendaciones futuras

@@ -22,6 +22,27 @@ const CoordinatorArea = sequelize.define(
       allowNull: false,
       defaultValue: 'ACTIVO',
     },
+    fecha_inicio: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    fecha_fin: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    asignado_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    cerrado_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    motivo_cierre: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
   },
   {
     tableName: 'coordinador_area',

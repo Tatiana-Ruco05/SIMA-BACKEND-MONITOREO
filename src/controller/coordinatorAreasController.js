@@ -59,6 +59,19 @@ const assignAreaToCoordinator = async (req, res) => {
   }
 };
 
+const getAreas = async (_req, res) => {
+  try {
+    const areas = await EducationalArea.findAll({
+      attributes: ['id_area', 'nombre_area'],
+      order: [['nombre_area', 'ASC']],
+    });
+
+    return successResponse(res, 'Areas de formacion obtenidas correctamente', { areas });
+  } catch (error) {
+    return errorResponse(res, 'Error al obtener areas de formacion', 500, error.message);
+  }
+};
+
 const removeAreaFromCoordinator = async (req, res) => {
   try {
     const { idUsuario, idArea } = req.params;
@@ -109,6 +122,7 @@ const getCoordinatorAreas = async (req, res) => {
 
 module.exports = {
   assignAreaToCoordinator,
+  getAreas,
   removeAreaFromCoordinator,
   getCoordinatorAreas,
 };
