@@ -356,6 +356,16 @@ const getAreaDetail = async (req, res) => {
 
 const getSuperAdminSummary = async (_req, res) => {
   try {
+    const safeCount = async (counter) => {
+      try {
+        return await counter();
+      } catch (error) {
+        if (String(error?.message || '').includes("doesn't exist")) return 0;
+        if (String(error?.original?.code || '') === 'ER_NO_SUCH_TABLE') return 0;
+        throw error;
+      }
+    };
+
     const [
       totalUsers,
       activeUsers,
@@ -399,13 +409,13 @@ const getSuperAdminSummary = async (_req, res) => {
       BiometricFingerprint.count({ where: { estado: 'ACTIVA' } }),
       BiometricFingerprint.count({ where: { estado: 'REVOCADA' } }),
       AttendanceJustification.count({ where: { estado: 'PENDIENTE' } }),
-      IoTAttendanceAttempt.count({
+      safeCount(() => IoTAttendanceAttempt.count({
         where: {
           fecha_origen: {
             [Op.gte]: new Date(new Date().setHours(0, 0, 0, 0)),
           },
         },
-      }),
+      })),
     ]);
 
     const groupsByState = await Group.findAll({

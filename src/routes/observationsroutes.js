@@ -13,6 +13,8 @@ const {
   getObservationsByApprentice,
   getObservationsByGroup,
   updateObservation,
+  updateObservationStatus,
+  deleteObservation,
 } = require('../controller/observationscontroller');
 
 const observationTypes = ['ACADEMICA', 'CONVIVENCIAL'];
@@ -55,6 +57,10 @@ const updateObservationValidations = [
     .withMessage('descripcion debe tener al menos 20 caracteres'),
 ];
 
+const updateObservationStatusValidations = [
+  body('estado').isIn(observationStates).withMessage('estado debe ser ABIERTA o CERRADA'),
+];
+
 router.post(
   '/',
   authMiddleware,
@@ -67,7 +73,7 @@ router.post(
 router.get(
   '/group/:idGrupo',
   authMiddleware,
-  requireRole('instructor'),
+  requireRole('SUPER_ADMIN', 'instructor'),
   idParamValidation('idGrupo'),
   queryFiltersValidations,
   validateRequest,
@@ -77,7 +83,7 @@ router.get(
 router.get(
   '/apprentice/:idAprendiz',
   authMiddleware,
-  requireRole('instructor'),
+  requireRole('SUPER_ADMIN', 'instructor'),
   idParamValidation('idAprendiz'),
   queryFiltersValidations,
   validateRequest,
@@ -96,7 +102,7 @@ router.get(
 router.get(
   '/:id',
   authMiddleware,
-  requireRole('instructor'),
+  requireRole('SUPER_ADMIN', 'instructor'),
   idParamValidation('id'),
   validateRequest,
   getObservationById
@@ -105,11 +111,30 @@ router.get(
 router.patch(
   '/:id',
   authMiddleware,
-  requireRole('instructor'),
+  requireRole('SUPER_ADMIN', 'instructor'),
   idParamValidation('id'),
   updateObservationValidations,
   validateRequest,
   updateObservation
+);
+
+router.patch(
+  '/:id/status',
+  authMiddleware,
+  requireRole('SUPER_ADMIN'),
+  idParamValidation('id'),
+  updateObservationStatusValidations,
+  validateRequest,
+  updateObservationStatus
+);
+
+router.delete(
+  '/:id',
+  authMiddleware,
+  requireRole('SUPER_ADMIN'),
+  idParamValidation('id'),
+  validateRequest,
+  deleteObservation
 );
 
 module.exports = router;

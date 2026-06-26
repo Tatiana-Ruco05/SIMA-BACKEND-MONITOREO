@@ -3,6 +3,7 @@ const {
   sequelize,
   Alert,
   AlertObservation,
+  Notification,
   Observation,
   ValidAbsencesView,
   ApprenticeGroup,
@@ -867,6 +868,28 @@ class AlertService {
     });
 
     return this.getAlertById(id, requester);
+  }
+
+  static async deleteAlert(id, requester) {
+    if (this._role(requester) !== 'super_admin') {
+      throw { status: 403, message: 'Solo el superadministrador puede eliminar alertas' };
+    }
+
+    const transaction = await sequelize.transaction();
+    try {
+      const alert = await Alert.findByPk(id, { transaction });
+      if (!alert) throw { status: 404, message: 'Alerta no encontrada' };
+
+      await Notification.destroy({ where: { id_alerta: id }, transaction });
+      await AlertObservation.destroy({ where: { id_alerta: id }, transaction });
+      await alert.destroy({ transaction });
+
+      await transaction.commit();
+      return { id_alerta: Number(id), eliminada: true };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 }
 

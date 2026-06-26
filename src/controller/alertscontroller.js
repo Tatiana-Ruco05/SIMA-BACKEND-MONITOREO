@@ -85,6 +85,15 @@ const updateAlertStatus = async (req, res) => {
   }
 };
 
+const deleteAlert = async (req, res) => {
+  try {
+    const result = await AlertService.deleteAlert(req.params.id, req.user);
+    return successResponse(res, 'Alerta eliminada correctamente', result);
+  } catch (error) {
+    return errorResponse(res, error.message || 'Error al eliminar alerta', error.status || 500);
+  }
+};
+
 module.exports = {
   createAlertFromObservationsController,
   createManualAlertController,
@@ -94,4 +103,5 @@ module.exports = {
   getAlertById,
   getAlertObservationsController,
   updateAlertStatus,
+  deleteAlert,
 };

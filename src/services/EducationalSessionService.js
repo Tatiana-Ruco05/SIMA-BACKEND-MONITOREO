@@ -316,7 +316,6 @@ class EducationalSessionService {
     return {
       id_sesion_formacion: session.id_sesion_formacion,
       qr_token: token,
-      qr_expira_en: null,
       vigencia: 'Vigente mientras la sesion permanezca ABIERTA',
     };
   }
