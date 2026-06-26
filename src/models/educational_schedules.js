@@ -25,6 +25,10 @@ const EducationalSchedule = sequelize.define(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
+    id_ambiente: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: false,
+    },
     dia_semana: {
       type: DataTypes.TINYINT.UNSIGNED,
       allowNull: false,

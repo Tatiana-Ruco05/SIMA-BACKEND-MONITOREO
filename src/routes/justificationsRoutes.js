@@ -30,8 +30,8 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (_req, file, cb) => {
-  const allowedTypes = ['.pdf', '.png'];
-  const allowedMimeTypes = ['application/pdf', 'image/png'];
+  const allowedTypes = ['.pdf', '.png', '.jpg', '.jpeg'];
+  const allowedMimeTypes = ['application/pdf', 'image/png', 'image/jpeg'];
   const ext = path.extname(file.originalname).toLowerCase();
 
   if (allowedTypes.includes(ext) && allowedMimeTypes.includes(file.mimetype)) {
@@ -39,7 +39,7 @@ const fileFilter = (_req, file, cb) => {
     return;
   }
 
-  const error = new Error('Formato de soporte no permitido. Debe ser PDF o PNG');
+  const error = new Error('Formato de soporte no permitido. Debe ser PDF, PNG, JPG o JPEG');
   error.status = 400;
   cb(error);
 };

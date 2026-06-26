@@ -478,7 +478,7 @@ class AttendanceService {
 
     const { id_asistencia, comentario_aprendiz } = data;
     if (!file) {
-      throw { status: 400, message: 'Debe cargar un archivo de soporte (PDF o PNG)' };
+      throw { status: 400, message: 'Debe cargar un archivo de soporte (PDF, PNG, JPG o JPEG)' };
     }
 
     const transaction = await sequelize.transaction();

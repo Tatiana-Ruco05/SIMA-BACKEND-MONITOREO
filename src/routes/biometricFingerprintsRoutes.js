@@ -85,7 +85,9 @@ router.post(
     body('expira_en').isISO8601().withMessage('expira_en debe ser fecha ISO-8601 valida'),
     body('id_dispositivo').notEmpty().withMessage('id_dispositivo es obligatorio'),
     body('id_sesion_formacion').isInt({ min: 1 }).withMessage('id_sesion_formacion es obligatorio'),
-    body('operacion').equals('MATCHING_PACKAGE_HUELLAS').withMessage('operacion debe ser MATCHING_PACKAGE_HUELLAS'),
+    body('operacion')
+      .isIn(['MATCHING_PACKAGE_HUELLAS', 'MATCHING_PACKAGE'])
+      .withMessage('operacion debe ser MATCHING_PACKAGE_HUELLAS'),
     body('firma_evento').isString().trim().isLength({ min: 20, max: 255 }).withMessage('firma_evento invalida'),
   ],
   validateRequest,
