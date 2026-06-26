@@ -22,7 +22,7 @@ const {
 router.get(
   '/',
   authMiddleware,
-  requireRole('coordinador', 'instructor'),
+  requireRole('SUPER_ADMIN', 'coordinador', 'instructor'),
   getGroups
 );
 
@@ -30,7 +30,7 @@ router.get(
 router.get(
   '/instructores-disponibles',
   authMiddleware,
-  requireRole('coordinador', 'instructor'),
+  requireRole('SUPER_ADMIN', 'coordinador', 'instructor'),
   getAvailableInstructors
 );
 
@@ -38,7 +38,7 @@ router.get(
 router.get(
   '/verificar-ficha/:numero_ficha',
   authMiddleware,
-  requireRole('coordinador'),
+  requireRole('SUPER_ADMIN', 'coordinador'),
   verifyFichaNumber
 );
 
@@ -46,7 +46,7 @@ router.get(
 router.get(
   '/:id',
   authMiddleware,
-  requireRole('coordinador', 'instructor'),
+  requireRole('SUPER_ADMIN', 'coordinador', 'instructor'),
   getGroupById
 );
 
@@ -56,14 +56,14 @@ router.get(
 router.post(
   '/',
   authMiddleware,
-  requireRole('coordinador'),
+  requireRole('SUPER_ADMIN', 'coordinador'),
   [
     body('numero_ficha').trim().escape().notEmpty().withMessage('El número de ficha es obligatorio').isString().isLength({ max: 30 }),
     body('id_programa').notEmpty().withMessage('El programa es obligatorio').isInt(),
     body('jornada').trim().notEmpty().withMessage('La jornada es obligatoria').isString(),
     body('trimestres').notEmpty().withMessage('Los trimestres son obligatorios').isInt({ min: 1 }),
     body('fecha_inicio').notEmpty().withMessage('La fecha de inicio es obligatoria').isISO8601(),
-    body('id_ambiente').optional({ nullable: true, checkFalsy: true }).isInt(),
+    body('id_ambiente').notEmpty().withMessage('El ambiente es obligatorio').isInt({ min: 1 }).withMessage('El ambiente debe ser un entero valido'),
     body('id_instructor_lider').optional({ nullable: true, checkFalsy: true }).isInt()
   ],
   validateRequest,
@@ -74,7 +74,7 @@ router.post(
 router.put(
   '/:id',
   authMiddleware,
-  requireRole('coordinador'),
+  requireRole('SUPER_ADMIN', 'coordinador'),
   [
     body('numero_ficha').optional().trim().escape().notEmpty().isString().isLength({ max: 30 }),
     body('id_programa').optional().isInt(),
@@ -91,7 +91,7 @@ router.put(
 router.patch(
   '/:id/estado',
   authMiddleware,
-  requireRole('coordinador'),
+  requireRole('SUPER_ADMIN', 'coordinador'),
   [
     body('estado')
       .isIn(['EN_FORMACION', 'PRACTICAS', 'FINALIZADO'])
@@ -105,7 +105,7 @@ router.patch(
 router.patch(
   '/:id/instructor-lider',
   authMiddleware,
-  requireRole('coordinador'),
+  requireRole('SUPER_ADMIN', 'coordinador'),
   [
     body('id_instructor').notEmpty().withMessage('El id_instructor es obligatorio').isInt()
   ],

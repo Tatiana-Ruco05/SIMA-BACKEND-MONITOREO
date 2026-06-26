@@ -13,12 +13,16 @@ const rolesRoutes = require('./routes/rolesroutes');
 const permissionsRoutes = require('./routes/permissionsroutes');
 const apprenticesRoutes = require('./routes/apprenticesroutes');
 const attendancesRoutes = require('./routes/attendancesRoutes');
+const justificationsRoutes = require('./routes/justificationsRoutes');
 const educationalSessionsRoutes = require('./routes/educationalSessionsRoutes');
 const educationalSchedulesRoutes = require('./routes/educationalSchedulesRoutes');
+const environmentsRoutes = require('./routes/environmentsRoutes');
 const observationsRoutes = require('./routes/observationsroutes');
 const profileRoutes = require('./routes/profileRoutes');
 const instructorGroupsRoutes = require('./routes/instructorGroupsRoutes');
 const apprenticePortalRoutes = require('./routes/apprenticePortalRoutes');
+const iotRoutes = require('./routes/iotRoutes');
+const biometricFingerprintsRoutes = require('./routes/biometricFingerprintsRoutes');
 
 // coordinacion
 const dashboardRoutes = require('./routes/dashboardRoutes');
@@ -110,12 +114,17 @@ app.use('/api/roles', rolesRoutes);
 app.use('/api/permissions', permissionsRoutes);
 app.use('/api/apprentices', apprenticesRoutes);
 app.use('/api/attendances', attendancesRoutes);
+app.use('/api/justifications', justificationsRoutes);
 app.use('/api/educational-schedules', educationalSchedulesRoutes);
 app.use('/api/educational-sessions', educationalSessionsRoutes);
+app.use('/api/environments', environmentsRoutes);
+app.use('/api/ambientes', environmentsRoutes);
 app.use('/api/observations', observationsRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/instructor-groups', instructorGroupsRoutes);
 app.use('/api/apprentice-portal', apprenticePortalRoutes);
+app.use('/api/iot', iotRoutes);
+app.use('/api/biometrics/fingerprints', biometricFingerprintsRoutes);
 
 // Rutas especificas para coordinadores
 app.use('/api/dashboard', dashboardRoutes);

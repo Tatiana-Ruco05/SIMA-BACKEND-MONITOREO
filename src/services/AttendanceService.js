@@ -1,6 +1,8 @@
 const {
   Op,
 } = require('sequelize');
+const crypto = require('crypto');
+const fs = require('fs');
 
 const env = require('../config/env');
 const {
@@ -211,7 +213,7 @@ class AttendanceService {
     const ep05State = String(estado || '').trim().toUpperCase();
 
     if (!MANUAL_EP05_STATES.includes(ep05State)) {
-      throw { status: 400, message: 'El estado manual debe ser PRESENTE, TARDE o JUSTIFICADO' };
+      throw { status: 400, message: 'El estado manual debe ser PRESENTE o TARDE' };
     }
 
     const dbState = toDbAttendanceState(ep05State);
@@ -494,7 +496,7 @@ class AttendanceService {
         throw { status: 403, message: 'No tienes permisos para justificar esta inasistencia' };
       }
 
-      if (attendance.estado_asistencia !== 'INASISTENTE') {
+      if (attendance.estado_asistencia !== 'INASISTENCIA') {
         throw { status: 400, message: 'Solo se pueden justificar inasistencias' };
       }
 
@@ -520,11 +522,17 @@ class AttendanceService {
       }
 
       const fileUrl = `/uploads/justifications/${file.filename}`;
+      const fileBuffer = fs.readFileSync(file.path);
+      const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
       const justification = await AttendanceJustification.create({
         id_asistencia,
         id_aprendiz: requester.id_aprendiz,
         archivo_url: fileUrl,
+        archivo_nombre_original: file.originalname,
+        archivo_mime: file.mimetype,
+        archivo_tamano_bytes: file.size,
+        archivo_hash: fileHash,
         comentario_aprendiz: comentario_aprendiz ? String(comentario_aprendiz).trim() : null,
         estado: 'PENDIENTE',
       }, { transaction });
@@ -587,7 +595,7 @@ class AttendanceService {
 
       if (finalStatus === 'APROBADA') {
         await Attendance.update({
-          estado_asistencia: 'JUSTIFICADA',
+          estado_asistencia: 'JUSTIFICADO',
           observacion: `Justificada aprobada por instructor. Comentario: ${comentario_instructor || ''}`,
         }, {
           where: { id_asistencia: justification.id_asistencia },
@@ -618,7 +626,7 @@ class AttendanceService {
     const rows = await Attendance.findAll({
       where: {
         id_aprendiz: requester.id_aprendiz,
-        estado_asistencia: 'INASISTENTE',
+        estado_asistencia: 'INASISTENCIA',
       },
       include: [
         {

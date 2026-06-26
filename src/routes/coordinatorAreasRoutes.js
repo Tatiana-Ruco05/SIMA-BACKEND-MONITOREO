@@ -5,12 +5,14 @@ const authMiddleware = require('../middlewares/authmiddleware');
 const { requireRole } = require('../middlewares/permissionsmiddleware');
 const {
   assignAreaToCoordinator,
+  getAreas,
   removeAreaFromCoordinator,
   getCoordinatorAreas,
 } = require('../controller/coordinatorAreasController');
 
-router.post('/', authMiddleware, requireRole('coordinador'), assignAreaToCoordinator);
-router.get('/:idUsuario', authMiddleware, requireRole('coordinador'), getCoordinatorAreas);
-router.delete('/:idUsuario/:idArea', authMiddleware, requireRole('coordinador'), removeAreaFromCoordinator);
+router.get('/areas', authMiddleware, requireRole('SUPER_ADMIN', 'coordinador'), getAreas);
+router.post('/', authMiddleware, requireRole('SUPER_ADMIN'), assignAreaToCoordinator);
+router.get('/:idUsuario', authMiddleware, requireRole('SUPER_ADMIN', 'coordinador'), getCoordinatorAreas);
+router.delete('/:idUsuario/:idArea', authMiddleware, requireRole('SUPER_ADMIN'), removeAreaFromCoordinator);
 
 module.exports = router;

@@ -13,13 +13,25 @@ const BiometricFingerprint = sequelize.define(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
-    id_dispositivo: {
+    id_dispositivo_enrolamiento: {
       type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    plantilla_biometrica_cifrada: {
+      type: DataTypes.BLOB,
       allowNull: false,
     },
-    codigo_huella: {
-      type: DataTypes.STRING(100),
+    plantilla_hash: {
+      type: DataTypes.STRING(64),
       allowNull: false,
+    },
+    calidad_captura: {
+      type: DataTypes.TINYINT.UNSIGNED,
+      allowNull: false,
+    },
+    dedo: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
     },
     fecha_enrolamiento: {
       type: DataTypes.DATE,
@@ -31,9 +43,21 @@ const BiometricFingerprint = sequelize.define(
       allowNull: false,
     },
     estado: {
-      type: DataTypes.ENUM('ACTIVA', 'INACTIVA'),
+      type: DataTypes.ENUM('ACTIVA', 'REVOCADA'),
       allowNull: false,
       defaultValue: 'ACTIVA',
+    },
+    fecha_revocacion: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    revocada_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    motivo_revocacion: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
     },
   },
   {

@@ -17,6 +17,22 @@ const Notification = sequelize.define(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: true,
     },
+    id_observacion: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    id_sesion_formacion: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    id_justificacion: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    id_intento_iot: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
     titulo: {
       type: DataTypes.STRING(120),
       allowNull: false,
@@ -26,7 +42,7 @@ const Notification = sequelize.define(
       allowNull: false,
     },
     tipo: {
-      type: DataTypes.ENUM('ALERTA', 'CITACION', 'ASISTENCIA', 'OBSERVACION'),
+      type: DataTypes.ENUM('ALERTA', 'OBSERVACION', 'ASISTENCIA', 'SESION', 'JUSTIFICACION', 'IOT', 'SISTEMA'),
       allowNull: false,
     },
     leida: {

@@ -17,10 +17,6 @@ const Alert = sequelize.define(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
     },
-    id_observacion: {
-      type: DataTypes.BIGINT.UNSIGNED,
-      allowNull: true,
-    },
     tipo_alerta: {
       type: DataTypes.ENUM('ASISTENCIAL', 'OBSERVACIONES_RECURRENTES', 'CONVIVENCIAL'),
       allowNull: false,

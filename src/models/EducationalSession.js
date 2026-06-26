@@ -79,10 +79,6 @@ const EducationalSession = sequelize.define(
       type: DataTypes.STRING(255),
       allowNull: true,
     },
-    qr_expira_en: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
     fecha_apertura: {
       type: DataTypes.DATE,
       allowNull: true,

@@ -28,6 +28,39 @@ const IoTDevice = sequelize.define(
       allowNull: false,
       defaultValue: 'ACTIVO',
     },
+    ultima_conexion: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    ultima_sincronizacion: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    ultimo_fallo: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    fecha_ultimo_fallo: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    fallos_consecutivos: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    fecha_recuperacion: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    creado_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    actualizado_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
   },
   {
     tableName: 'dispositivos_iot',

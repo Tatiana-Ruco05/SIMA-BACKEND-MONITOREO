@@ -14,7 +14,7 @@ const AttendanceEvidence = sequelize.define(
       allowNull: false,
     },
     metodo: {
-      type: DataTypes.ENUM('QR', 'IOT_HUELLA', 'MANUAL', 'BIOMETRIA_MOVIL', 'GEOLOCALIZACION'),
+      type: DataTypes.ENUM('QR', 'IOT_HUELLA', 'MANUAL', 'BIOMETRIA_MOVIL', 'GEOLOCALIZACION', 'FACIAL_SIMA', 'CORRECCION', 'JUSTIFICACION'),
       allowNull: false,
     },
     resultado: {
@@ -39,12 +39,16 @@ const AttendanceEvidence = sequelize.define(
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: true,
     },
+    id_intento_iot: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
     latitud: {
-      type: DataTypes.DECIMAL(10, 7),
+      type: DataTypes.DECIMAL(10, 8),
       allowNull: true,
     },
     longitud: {
-      type: DataTypes.DECIMAL(10, 7),
+      type: DataTypes.DECIMAL(11, 8),
       allowNull: true,
     },
     precision_metros: {

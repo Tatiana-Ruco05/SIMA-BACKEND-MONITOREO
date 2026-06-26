@@ -22,19 +22,36 @@ const Attendance = sequelize.define(
       allowNull: true,
     },
     estado_asistencia: {
-      type: DataTypes.ENUM('PENDIENTE', 'PRESENTE', 'TARDE', 'INASISTENTE', 'JUSTIFICADA'),
+      type: DataTypes.ENUM('PENDIENTE', 'PRESENTE', 'TARDE', 'INASISTENCIA', 'JUSTIFICADO'),
       allowNull: false,
-      defaultValue: 'INASISTENTE',
+      defaultValue: 'PENDIENTE',
     },
     hora_registro: {
       type: DataTypes.TIME,
       allowNull: true,
     },
     origen: {
-      type: DataTypes.ENUM('QR', 'IOT_HUELLA', 'BIOMETRICO', 'BIOMETRIA_MOVIL', 'MANUAL', 'AUTOMATICO_CIERRE'),
-      allowNull: false,
+      type: DataTypes.ENUM('QR', 'IOT_HUELLA', 'MANUAL', 'AUTOMATICO_CIERRE', 'JUSTIFICACION', 'CORRECCION'),
+      allowNull: true,
     },
     observacion: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    anulada: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    fecha_anulacion: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    anulada_por: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+    },
+    motivo_anulacion: {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
@@ -57,7 +74,7 @@ const Attendance = sequelize.define(
 
 // Hooks para integracion automatica del motor de alertas
 Attendance.addHook('afterCreate', async (attendance, options) => {
-  if (['INASISTENTE', 'JUSTIFICADA'].includes(attendance.estado_asistencia)) {
+  if (['INASISTENCIA', 'JUSTIFICADO'].includes(attendance.estado_asistencia)) {
     try {
       const AlertService = require('../services/AlertService');
       await AlertService.evaluateInattendanceAlert(attendance.id_aprendiz);

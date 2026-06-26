@@ -20,6 +20,7 @@ const EducationalSession = require('./EducationalSession');
 
 const IoTDevice = require('./iotDevices');
 const EnvironmentAccess = require('./environmentAccesses');
+const IoTAttendanceAttempt = require('./iotAttendanceAttempts');
 
 const ApprenticeGroup = require('./apprenticeGroups');
 const InstructorGroup = require('./instructorGroups');
@@ -33,6 +34,7 @@ const AttendanceJustification = require('./attendanceJustifications');
 const Notification = require('./notifications');
 const BiometricFingerprint = require('./biometricFingerprints');
 const ValidAbsencesView = require('./validAbsencesView');
+const PrivilegedAudit = require('./privilegedAudits');
 
 // =========================
 // Usuarios y roles
@@ -279,6 +281,39 @@ IoTDevice.hasMany(EnvironmentAccess, {
 });
 
 // =========================
+// Intentos biometricos IoT de asistencia
+// =========================
+IoTAttendanceAttempt.belongsTo(IoTDevice, {
+  foreignKey: 'id_dispositivo',
+  as: 'dispositivo',
+});
+
+IoTDevice.hasMany(IoTAttendanceAttempt, {
+  foreignKey: 'id_dispositivo',
+  as: 'intentos_asistencia_iot',
+});
+
+IoTAttendanceAttempt.belongsTo(EducationalSession, {
+  foreignKey: 'id_sesion_formacion',
+  as: 'sesion',
+});
+
+EducationalSession.hasMany(IoTAttendanceAttempt, {
+  foreignKey: 'id_sesion_formacion',
+  as: 'intentos_asistencia_iot',
+});
+
+IoTAttendanceAttempt.belongsTo(User, {
+  foreignKey: 'id_usuario',
+  as: 'usuario_identificado',
+});
+
+User.hasMany(IoTAttendanceAttempt, {
+  foreignKey: 'id_usuario',
+  as: 'intentos_asistencia_iot',
+});
+
+// =========================
 // Relación aprendiz-grupo
 // =========================
 ApprenticeGroup.belongsTo(Apprentice, {
@@ -490,6 +525,16 @@ EnvironmentAccess.hasMany(Attendance, {
   as: 'asistencias',
 });
 
+IoTAttendanceAttempt.belongsTo(Attendance, {
+  foreignKey: 'id_asistencia',
+  as: 'asistencia',
+});
+
+Attendance.hasMany(IoTAttendanceAttempt, {
+  foreignKey: 'id_asistencia',
+  as: 'intentos_iot',
+});
+
 // La relacion directa por id_sesion_formacion es la relacion oficial.
 
 AttendanceEvidence.belongsTo(Attendance, {
@@ -529,6 +574,16 @@ AttendanceEvidence.belongsTo(EnvironmentAccess, {
 
 EnvironmentAccess.hasMany(AttendanceEvidence, {
   foreignKey: 'id_acceso',
+  as: 'evidencias_asistencia',
+});
+
+AttendanceEvidence.belongsTo(IoTAttendanceAttempt, {
+  foreignKey: 'id_intento_iot',
+  as: 'intento_iot',
+});
+
+IoTAttendanceAttempt.hasMany(AttendanceEvidence, {
+  foreignKey: 'id_intento_iot',
   as: 'evidencias_asistencia',
 });
 
@@ -585,16 +640,6 @@ Alert.belongsTo(Group, {
 
 Group.hasMany(Alert, {
   foreignKey: 'id_grupo',
-  as: 'alertas',
-});
-
-Alert.belongsTo(Observation, {
-  foreignKey: 'id_observacion',
-  as: 'observacion',
-});
-
-Observation.hasMany(Alert, {
-  foreignKey: 'id_observacion',
   as: 'alertas',
 });
 
@@ -714,6 +759,46 @@ Alert.hasMany(Notification, {
   as: 'notificaciones',
 });
 
+Notification.belongsTo(Observation, {
+  foreignKey: 'id_observacion',
+  as: 'observacion',
+});
+
+Observation.hasMany(Notification, {
+  foreignKey: 'id_observacion',
+  as: 'notificaciones',
+});
+
+Notification.belongsTo(EducationalSession, {
+  foreignKey: 'id_sesion_formacion',
+  as: 'sesion',
+});
+
+EducationalSession.hasMany(Notification, {
+  foreignKey: 'id_sesion_formacion',
+  as: 'notificaciones',
+});
+
+Notification.belongsTo(AttendanceJustification, {
+  foreignKey: 'id_justificacion',
+  as: 'justificacion',
+});
+
+AttendanceJustification.hasMany(Notification, {
+  foreignKey: 'id_justificacion',
+  as: 'notificaciones',
+});
+
+Notification.belongsTo(IoTAttendanceAttempt, {
+  foreignKey: 'id_intento_iot',
+  as: 'intento_iot',
+});
+
+IoTAttendanceAttempt.hasMany(Notification, {
+  foreignKey: 'id_intento_iot',
+  as: 'notificaciones',
+});
+
 // =========================
 // Huellas biométricas
 // =========================
@@ -728,13 +813,13 @@ User.hasMany(BiometricFingerprint, {
 });
 
 BiometricFingerprint.belongsTo(IoTDevice, {
-  foreignKey: 'id_dispositivo',
-  as: 'dispositivo',
+  foreignKey: 'id_dispositivo_enrolamiento',
+  as: 'dispositivo_enrolamiento',
 });
 
 IoTDevice.hasMany(BiometricFingerprint, {
-  foreignKey: 'id_dispositivo',
-  as: 'huellas',
+  foreignKey: 'id_dispositivo_enrolamiento',
+  as: 'huellas_enroladas',
 });
 
 BiometricFingerprint.belongsTo(User, {
@@ -745,6 +830,16 @@ BiometricFingerprint.belongsTo(User, {
 User.hasMany(BiometricFingerprint, {
   foreignKey: 'enrolado_por',
   as: 'huellas_enroladas',
+});
+
+PrivilegedAudit.belongsTo(User, {
+  foreignKey: 'id_usuario_responsable',
+  as: 'responsable',
+});
+
+User.hasMany(PrivilegedAudit, {
+  foreignKey: 'id_usuario_responsable',
+  as: 'auditorias_privilegiadas',
 });
 
 // =========================
@@ -770,6 +865,7 @@ module.exports = {
   EducationalSession,
   IoTDevice,
   EnvironmentAccess,
+  IoTAttendanceAttempt,
   ApprenticeGroup,
   InstructorGroup,
   Attendance,
@@ -781,4 +877,5 @@ module.exports = {
   Notification,
   BiometricFingerprint,
   ValidAbsencesView,
+  PrivilegedAudit,
 };
