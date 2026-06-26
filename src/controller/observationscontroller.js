@@ -62,6 +62,24 @@ const updateObservation = async (req, res) => {
   }
 };
 
+const updateObservationStatus = async (req, res) => {
+  try {
+    const result = await ObservationService.updateObservationStatus(req.params.id, req.body.estado, req.user);
+    return successResponse(res, 'Estado de observacion actualizado correctamente', result);
+  } catch (error) {
+    return errorResponse(res, error.message || 'Error al actualizar estado de observacion', error.status || 500);
+  }
+};
+
+const deleteObservation = async (req, res) => {
+  try {
+    const result = await ObservationService.deleteObservation(req.params.id, req.user);
+    return successResponse(res, 'Observacion eliminada correctamente', result);
+  } catch (error) {
+    return errorResponse(res, error.message || 'Error al eliminar observacion', error.status || 500);
+  }
+};
+
 module.exports = {
   createObservation,
   getObservationsByGroup,
@@ -69,4 +87,6 @@ module.exports = {
   getMyObservations,
   getObservationById,
   updateObservation,
+  updateObservationStatus,
+  deleteObservation,
 };

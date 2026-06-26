@@ -15,6 +15,7 @@ const {
   getAlertById,
   getAlertObservationsController,
   updateAlertStatus,
+  deleteAlert,
 } = require('../controller/alertscontroller');
 
 const alertTypes = ['ASISTENCIAL', 'OBSERVACIONES_RECURRENTES', 'CONVIVENCIAL'];
@@ -126,6 +127,15 @@ router.patch(
   updateStatusValidations,
   validateRequest,
   updateAlertStatus
+);
+
+router.delete(
+  '/:id',
+  authMiddleware,
+  requireRole('SUPER_ADMIN'),
+  idParamValidation('id'),
+  validateRequest,
+  deleteAlert
 );
 
 router.post(

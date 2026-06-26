@@ -19,10 +19,23 @@ const OBSERVATION_SEVERITIES = ['LEVE', 'MODERADA', 'GRAVE'];
 const OBSERVATION_STATES = ['ABIERTA', 'CERRADA'];
 
 class ObservationService {
+  static _role(requester) {
+    return String(requester?.rol || '').toLowerCase().trim();
+  }
+
+  static _isSuperAdmin(requester) {
+    return this._role(requester) === 'super_admin';
+  }
+
   static _ensureInstructorRequester(requester) {
-    if (!requester || requester.rol !== 'instructor' || !requester.id_instructor) {
+    if (!requester || this._role(requester) !== 'instructor' || !requester.id_instructor) {
       throw { status: 403, message: 'Solo un instructor activo puede gestionar observaciones' };
     }
+  }
+
+  static _ensureInstructorOrSuperAdmin(requester) {
+    if (this._isSuperAdmin(requester)) return;
+    this._ensureInstructorRequester(requester);
   }
 
   static _ensureApprenticeRequester(requester) {
@@ -206,11 +219,23 @@ class ObservationService {
   }
 
   static async getByGroup(idGrupo, filters, requester) {
-    this._ensureInstructorRequester(requester);
+    this._ensureInstructorOrSuperAdmin(requester);
 
     const { page, limit } = filters;
     const { limit: take, offset, page: currentPage } = getPagination(page, limit);
-    const { group, isLeader } = await this._getGroupAccessForInstructor(idGrupo, requester.id_instructor);
+    let group = null;
+    let isLeader = true;
+
+    if (this._isSuperAdmin(requester)) {
+      group = await Group.findByPk(idGrupo, {
+        attributes: ['id_grupo', 'numero_ficha', 'estado', 'id_instructor_lider'],
+      });
+      if (!group) throw { status: 404, message: 'Grupo formativo no encontrado' };
+    } else {
+      const access = await this._getGroupAccessForInstructor(idGrupo, requester.id_instructor);
+      group = access.group;
+      isLeader = access.isLeader;
+    }
 
     const where = this._applyFilters({ id_grupo: idGrupo }, filters);
     if (!isLeader) where.id_instructor = requester.id_instructor;
@@ -238,7 +263,7 @@ class ObservationService {
   }
 
   static async getByApprentice(idAprendiz, filters, requester) {
-    this._ensureInstructorRequester(requester);
+    this._ensureInstructorOrSuperAdmin(requester);
 
     const { id_grupo, page, limit } = filters;
     if (!id_grupo) {
@@ -246,7 +271,14 @@ class ObservationService {
     }
 
     const { limit: take, offset, page: currentPage } = getPagination(page, limit);
-    const { isLeader } = await this._getGroupAccessForInstructor(id_grupo, requester.id_instructor);
+    let isLeader = true;
+    if (this._isSuperAdmin(requester)) {
+      const group = await Group.findByPk(id_grupo, { attributes: ['id_grupo'] });
+      if (!group) throw { status: 404, message: 'Grupo formativo no encontrado' };
+    } else {
+      const access = await this._getGroupAccessForInstructor(id_grupo, requester.id_instructor);
+      isLeader = access.isLeader;
+    }
     await this._assertApprenticeActiveInGroup(idAprendiz, id_grupo);
 
     const where = this._applyFilters({ id_aprendiz: idAprendiz, id_grupo }, filters);
@@ -314,7 +346,7 @@ class ObservationService {
   }
 
   static async getById(id, requester) {
-    this._ensureInstructorRequester(requester);
+    this._ensureInstructorOrSuperAdmin(requester);
 
     const observation = await Observation.findByPk(id, {
       include: this._observationIncludes(),
@@ -322,27 +354,31 @@ class ObservationService {
 
     if (!observation) throw { status: 404, message: 'Observacion no encontrada' };
 
-    const { isLeader } = await this._getGroupAccessForInstructor(observation.id_grupo, requester.id_instructor);
-    if (!isLeader && Number(observation.id_instructor) !== Number(requester.id_instructor)) {
-      throw { status: 403, message: 'No tienes permisos para consultar esta observacion' };
+    if (!this._isSuperAdmin(requester)) {
+      const { isLeader } = await this._getGroupAccessForInstructor(observation.id_grupo, requester.id_instructor);
+      if (!isLeader && Number(observation.id_instructor) !== Number(requester.id_instructor)) {
+        throw { status: 403, message: 'No tienes permisos para consultar esta observacion' };
+      }
     }
 
     return observation;
   }
 
   static async updateObservation(id, data, requester) {
-    this._ensureInstructorRequester(requester);
+    this._ensureInstructorOrSuperAdmin(requester);
 
     const observation = await Observation.findByPk(id);
     if (!observation) throw { status: 404, message: 'Observacion no encontrada' };
 
-    await this._getGroupAccessForInstructor(observation.id_grupo, requester.id_instructor);
+    if (!this._isSuperAdmin(requester)) {
+      await this._getGroupAccessForInstructor(observation.id_grupo, requester.id_instructor);
 
-    if (Number(observation.id_instructor) !== Number(requester.id_instructor)) {
-      throw { status: 403, message: 'Solo el instructor que creo la observacion puede editarla' };
+      if (Number(observation.id_instructor) !== Number(requester.id_instructor)) {
+        throw { status: 403, message: 'Solo el instructor que creo la observacion puede editarla' };
+      }
     }
 
-    if (observation.estado === 'CERRADA') {
+    if (!this._isSuperAdmin(requester) && observation.estado === 'CERRADA') {
       throw { status: 409, message: 'Las observaciones cerradas no pueden modificarse' };
     }
 
@@ -353,6 +389,48 @@ class ObservationService {
 
     await observation.update(payload);
     return this.getById(id, requester);
+  }
+
+  static async updateObservationStatus(id, estado, requester) {
+    if (!this._isSuperAdmin(requester)) {
+      throw { status: 403, message: 'Solo el superadministrador puede cambiar el estado de observaciones' };
+    }
+
+    if (!OBSERVATION_STATES.includes(estado)) {
+      throw { status: 400, message: 'El estado debe ser ABIERTA o CERRADA' };
+    }
+
+    const observation = await Observation.findByPk(id);
+    if (!observation) throw { status: 404, message: 'Observacion no encontrada' };
+
+    await observation.update({
+      estado,
+      fecha_cierre: estado === 'CERRADA' ? new Date() : null,
+    });
+
+    return this.getById(id, requester);
+  }
+
+  static async deleteObservation(id, requester) {
+    if (!this._isSuperAdmin(requester)) {
+      throw { status: 403, message: 'Solo el superadministrador puede eliminar observaciones' };
+    }
+
+    const transaction = await sequelize.transaction();
+    try {
+      const observation = await Observation.findByPk(id, { transaction });
+      if (!observation) throw { status: 404, message: 'Observacion no encontrada' };
+
+      await Notification.destroy({ where: { id_observacion: id }, transaction });
+      await AlertObservation.destroy({ where: { id_observacion: id }, transaction });
+      await observation.destroy({ transaction });
+
+      await transaction.commit();
+      return { id_observacion: Number(id), eliminada: true };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   static async closeObservationsForAlert({ observationIds, id_alerta, associatedBy, transaction }) {
