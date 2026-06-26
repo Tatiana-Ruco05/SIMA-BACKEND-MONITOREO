@@ -1598,10 +1598,6 @@ INSERT INTO `dispositivos_iot` (`codigo_dispositivo`, `id_ambiente`, `tipo_dispo
 ('ESP32-LAB-001', 1, 'ESP32_HUELLA', 'ACTIVO', '2026-06-17 06:50:00', '2026-06-17 06:51:00', 1),
 ('ESP32-TALLER-002', 2, 'ESP32_HUELLA', 'ACTIVO', NULL, NULL, 1);
 
-INSERT INTO `huellas_biometricas` (`id_usuario`, `id_dispositivo_enrolamiento`, `plantilla_biometrica_cifrada`, `plantilla_hash`, `calidad_captura`, `dedo`, `enrolado_por`, `estado`) VALUES
-(4, 1, UNHEX(SHA2('plantilla-cifrada-demo-jorge-1', 512)), SHA2('plantilla-demo-jorge-1', 256), 86, 'INDICE_DERECHO', 1, 'ACTIVA'),
-(4, 1, UNHEX(SHA2('plantilla-cifrada-demo-jorge-2', 512)), SHA2('plantilla-demo-jorge-2', 256), 84, 'INDICE_IZQUIERDO', 1, 'ACTIVA');
-
 INSERT INTO `accesos_ambiente` (`id_usuario`, `id_dispositivo`, `tipo_evento`, `resultado`, `observacion`) VALUES
 (4, 1, 'ENTRADA', 'PERMITIDO', 'Ingreso validado por huella'),
 (NULL, 1, 'INTENTO_FALLIDO', 'DENEGADO', 'Huella no identificada');
@@ -1643,8 +1639,7 @@ INSERT INTO `notificaciones` (`id_usuario`, `id_alerta`, `id_observacion`, `titu
 (4, 1, 1, 'Nueva observacion', 'Se ha registrado una observacion en tu perfil.', 'OBSERVACION');
 
 INSERT INTO `auditoria_privilegiada` (`id_usuario_responsable`, `accion`, `entidad`, `id_entidad`, `valor_anterior`, `valor_nuevo`, `motivo`, `resultado`) VALUES
-(1, 'SEED_INICIAL', 'usuarios', 1, NULL, JSON_OBJECT('rol', 'SUPER_ADMIN', 'estado', 'ACTIVO'), 'Aprovisionamiento inicial controlado', 'EXITOSO'),
-(1, 'ENROLAR_HUELLA', 'huellas_biometricas', 1, NULL, JSON_OBJECT('estado', 'ACTIVA'), 'Seed de demostracion de enrolamiento protegido', 'EXITOSO');
+(1, 'SEED_INICIAL', 'usuarios', 1, NULL, JSON_OBJECT('rol', 'SUPER_ADMIN', 'estado', 'ACTIVO'), 'Aprovisionamiento inicial controlado', 'EXITOSO');
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;

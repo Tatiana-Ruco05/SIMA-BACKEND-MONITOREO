@@ -46,7 +46,7 @@ const PrivilegedAudit = sequelize.define(
       type: DataTypes.STRING(500),
       allowNull: true,
     },
-    fecha: {
+    fecha_evento: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,

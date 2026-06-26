@@ -187,6 +187,10 @@ class EducationalScheduleService {
       throw { status: 400, message: 'La hora de fin debe ser posterior a la hora de inicio' };
     }
 
+    if (!group.id_ambiente) {
+      throw { status: 409, message: 'El grupo no tiene ambiente asignado para crear horarios' };
+    }
+
     return { groupTrimester, group, instructorGroup, block, competency, horaInicio, horaFin };
   }
 
@@ -344,6 +348,7 @@ class EducationalScheduleService {
         id_clase_competencia: data.id_clase_competencia,
         id_instructor_grupo: data.id_instructor_grupo,
         id_bloque_jornada: data.id_bloque_jornada,
+        id_ambiente: context.group.id_ambiente,
         dia_semana: data.dia_semana,
         hora_inicio: context.horaInicio,
         hora_fin: context.horaFin,
@@ -461,6 +466,7 @@ class EducationalScheduleService {
 
       await schedule.update({
         ...nextData,
+        id_ambiente: context.group.id_ambiente,
         hora_inicio: context.horaInicio,
         hora_fin: context.horaFin,
       }, { transaction });

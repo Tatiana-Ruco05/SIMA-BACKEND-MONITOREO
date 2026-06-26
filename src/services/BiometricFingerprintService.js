@@ -352,17 +352,35 @@ class BiometricFingerprintService {
         })
         : [];
 
-      const templates = fingerprints.map((fingerprint) => {
-        const template = decryptTemplate(fingerprint.plantilla_biometrica_cifrada);
-        const item = {
-          id_huella: fingerprint.id_huella,
-          id_usuario: fingerprint.id_usuario,
-          plantilla_biometrica_base64: template.toString('base64'),
-          template_type: 'SUPREMA',
-        };
-        template.fill(0);
-        return item;
+      const templates = [];
+      const omittedFingerprints = [];
+
+      fingerprints.forEach((fingerprint) => {
+        let template;
+        try {
+          template = decryptTemplate(fingerprint.plantilla_biometrica_cifrada);
+          templates.push({
+            id_huella: fingerprint.id_huella,
+            id_usuario: fingerprint.id_usuario,
+            plantilla_biometrica_base64: template.toString('base64'),
+            template_type: 'SUPREMA',
+          });
+        } catch (error) {
+          omittedFingerprints.push({
+            id_huella: fingerprint.id_huella,
+            id_usuario: fingerprint.id_usuario,
+            motivo: error.message || 'Plantilla biometrica invalida',
+          });
+        } finally {
+          if (template) {
+            template.fill(0);
+          }
+        }
       });
+
+      if (omittedFingerprints.length) {
+        console.warn('Huellas omitidas del paquete de matching por cifrado invalido o legacy', omittedFingerprints);
+      }
 
       const ttlSeconds = env.SIMA_BIOMETRIC_MATCHING_PACKAGE_TTL_SECONDS;
       const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
